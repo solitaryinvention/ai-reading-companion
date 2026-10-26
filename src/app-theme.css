@@ -1,0 +1,419 @@
+/* Shared application surfaces. Reader images and PDF raster colors retain their source colors. */
+:root[data-theme] {
+  color-scheme: light;
+  --app-bg: #f5f5ef;
+  --sidebar-bg: #f1f3ed;
+  --surface: #fcfdf9;
+  --raised: #ffffff;
+  --soft: #f1f4eb;
+  --hover: #e8ede2;
+  --selected: #dfe9d7;
+  --text: #303d36;
+  --secondary: #697562;
+  --muted: #7c8776;
+  --line: #dfe5d8;
+  --accent: #436b4d;
+  --accent-fill: #396748;
+  --on-accent: #ffffff;
+  --editor-ink: #111111;
+  --reader-bg: #f8f5ed;
+  --reader-stage: #e8e6df;
+  --scroll-track: #f0f2eb;
+  --scroll-thumb: #b0bba7;
+  --shade: #18251b66;
+  --warning-bg: #f1e7d5;
+  --warning: #88673f;
+  --shadow: 0 12px 40px #24341c12;
+  color: var(--text);
+  background: var(--app-bg);
+}
+:root[data-theme='white'] {
+  --app-bg: #f6f7f8;
+  --sidebar-bg: #f5f6f7;
+  --surface: #ffffff;
+  --raised: #ffffff;
+  --soft: #f2f4f5;
+  --hover: #eaeeef;
+  --selected: #e5eee8;
+  --text: #252d2a;
+  --secondary: #5c6762;
+  --muted: #737f79;
+  --line: #e2e7e4;
+  --reader-bg: #ffffff;
+  --reader-stage: #eef0f2;
+  --scroll-track: #f4f5f6;
+  --scroll-thumb: #b4bdb8;
+}
+:root[data-theme='night'] {
+  color-scheme: dark;
+  --app-bg: #171b1a;
+  --sidebar-bg: #1c211f;
+  --surface: #202623;
+  --raised: #272e2a;
+  --soft: #2b332e;
+  --hover: #343e36;
+  --selected: #354a3d;
+  --text: #dbe1da;
+  --secondary: #b4bfb2;
+  --muted: #96a292;
+  --line: #364038;
+  --accent: #a8ccac;
+  --accent-fill: #aac9ac;
+  --on-accent: #18281e;
+  --editor-ink: #dbe1da;
+  --reader-bg: #202623;
+  --reader-stage: #161b18;
+  --scroll-track: #202623;
+  --scroll-thumb: #536351;
+  --shade: #080d0bcc;
+  --warning-bg: #3c3325;
+  --warning: #d9bb8e;
+  --shadow: 0 14px 42px #00000040;
+}
+:root[data-theme] :is(body, .app) {
+  background: var(--app-bg);
+  color: var(--text);
+}
+:root[data-theme] .sidebar {
+  background: var(--sidebar-bg);
+}
+:root[data-theme] .chat-panel {
+  background: var(--surface);
+}
+:root[data-theme] :is(.chat-header, .tabs, .settings-footer, .thought-actions, .highlight-list article) {
+  border-color: var(--line);
+}
+:root[data-theme] .splitter {
+  background: var(--line);
+}
+:root[data-theme] .splitter:hover {
+  background: var(--accent);
+}
+:root[data-theme] button:hover {
+  background: var(--hover);
+}
+:root[data-theme] :is(input, select, textarea) {
+  color-scheme: inherit;
+  background: var(--raised);
+  color: var(--editor-ink);
+  border-color: var(--line);
+  caret-color: var(--editor-ink);
+}
+:root[data-theme] :is(input, textarea)::placeholder {
+  color: var(--muted);
+  opacity: 1;
+}
+:root[data-theme] :is(.import-button, .archive-entry, .connection-button, .agent-entry) {
+  background: var(--raised);
+  border-color: var(--line);
+  color: var(--secondary);
+  box-shadow: none;
+}
+:root[data-theme] :is(.import-button, .archive-entry, .connection-button, .agent-entry):hover {
+  background: var(--hover);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+:root[data-theme]
+  :is(
+    .search,
+    .new-chat,
+    .message-quote,
+    .mode-tabs,
+    .connection-card,
+    .composer,
+    .detail-panel,
+    .selection-bar,
+    .ocr-result
+  ) {
+  border-color: var(--line);
+}
+:root[data-theme] .search {
+  background: var(--surface);
+  color: var(--muted);
+}
+:root[data-theme] .search input {
+  background: transparent;
+}
+:root[data-theme]
+  :is(
+    .tabs button,
+    .book-select small,
+    .section-label,
+    .sidebar-empty,
+    .eyebrow,
+    .local-label,
+    .muted,
+    .file-location,
+    .settings-footer,
+    .composer-bottom > span,
+    .context-controls,
+    .reader-footer,
+    .thought-editor > label,
+    .detail-heading,
+    .detail-heading span,
+    .detail-heading button,
+    .detail-labels button,
+    .detail-trigger > svg,
+    .pdf-tools small,
+    .ocr-result small,
+    .account-state small,
+    .model-select-label,
+    .connection-card p,
+    .knowledge-modal header small,
+    .thought-items small,
+    .toc-row > small
+  ) {
+  color: var(--muted);
+}
+:root[data-theme]
+  :is(.book-row.selected, .session-row.selected, .tabs .active, .toc-row.current, .thought-items .active) {
+  background: var(--selected);
+  color: var(--accent);
+}
+:root[data-theme] .toc-row.current {
+  border-left-color: var(--accent);
+}
+:root[data-theme] .toc-row.current > small {
+  color: var(--secondary);
+}
+:root[data-theme] :is(.model-badge, .context-preview, .source-link, .avatar, .draft-quote) {
+  background: var(--soft);
+  color: var(--accent);
+}
+:root[data-theme]
+  :is(
+    .context-controls button,
+    .settings-footer button,
+    .quote-info,
+    .detail-heading strong,
+    .detail-labels button[aria-pressed='true']
+  ) {
+  color: var(--accent);
+}
+:root[data-theme] .context-controls input[type='checkbox'] {
+  accent-color: var(--accent-fill);
+}
+:root[data-theme] .composer {
+  background: var(--raised);
+  box-shadow: none;
+}
+:root[data-theme] .composer:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 10%, transparent);
+}
+:root[data-theme] .composer textarea {
+  background: transparent;
+  color: var(--text);
+}
+:root[data-theme] :is(.markdown, .modal h2, .ocr-result, .highlight-location span) {
+  color: var(--text);
+}
+:root[data-theme]
+  :is(
+    .message-heading strong,
+    .message-quote > span,
+    .message-quote p,
+    .markdown blockquote,
+    .highlight-location small,
+    .selection-bar > span,
+    .detail-panel p
+  ) {
+  color: var(--secondary);
+}
+:root[data-theme]
+  :is(
+    .message.user .markdown,
+    .markdown pre,
+    .mode-tabs,
+    .connection-card,
+    .thought-editor textarea[readonly]
+  ) {
+  background: var(--soft);
+}
+:root[data-theme] .message-quote {
+  background: var(--soft);
+}
+:root[data-theme] .markdown blockquote {
+  border-color: var(--accent);
+}
+:root[data-theme] :is(.send-button, .primary, .avatar.assistant) {
+  background: var(--accent-fill);
+  color: var(--on-accent);
+  border-color: transparent;
+}
+:root[data-theme] :is(.send-button, .primary):hover {
+  background: color-mix(in srgb, var(--accent-fill) 88%, var(--text));
+}
+:root[data-theme] .send-button.stop {
+  background: var(--warning-bg);
+  color: var(--warning);
+}
+:root[data-theme] .danger {
+  background: #a66551;
+  color: #fff;
+}
+:root[data-theme] .danger:hover {
+  background: #95543f;
+}
+:root[data-theme] :is(.message-status, .reader-overlay.error) {
+  color: var(--warning);
+}
+:root[data-theme] .message-status button {
+  border-color: var(--line);
+}
+:root[data-theme] .modal-shade {
+  background: var(--shade);
+  backdrop-filter: blur(5px);
+}
+:root[data-theme] :is(.modal, .detail-panel, .selection-bar, .ocr-result) {
+  background: var(--raised);
+  color: var(--text);
+  border-color: var(--line);
+  box-shadow: var(--shadow);
+}
+:root[data-theme] .modal h2 {
+  font-family: inherit;
+  font-size: 20px;
+  font-weight: 600;
+}
+:root[data-theme] .knowledge-modal {
+  color-scheme: inherit;
+}
+:root[data-theme] :is(.knowledge-modal > textarea, .thought-editor textarea, .ocr-result textarea) {
+  color: var(--editor-ink);
+  -webkit-text-fill-color: var(--editor-ink);
+  caret-color: var(--editor-ink);
+  background: var(--surface);
+  border-color: var(--line);
+}
+:root[data-theme] .thought-editor textarea[readonly] {
+  background: var(--soft);
+}
+:root[data-theme] :is(.knowledge-modal footer > span, .thought-editor label) {
+  color: var(--secondary);
+}
+:root[data-theme] .mode-tabs .active {
+  background: var(--raised);
+  color: var(--accent);
+  box-shadow: none;
+}
+:root[data-theme] .thought-items button {
+  border: 1px solid transparent;
+}
+:root[data-theme] .thought-items .active {
+  border-color: var(--line);
+}
+:root[data-theme] :is(.reader-panel, .reader-empty, .epub-viewport, .reader-toolbar, .reader-footer) {
+  background: var(--reader-bg);
+  color: var(--text);
+  border-color: var(--line);
+}
+:root[data-theme] .reader-panel :is(.reader-toolbar, .reader-footer) {
+  background: var(--reader-bg);
+  border-color: var(--line);
+  color: var(--secondary);
+}
+:root[data-theme] .reader-panel .toolbar-controls select {
+  background: transparent;
+  color: var(--secondary);
+}
+:root[data-theme] .toolbar-controls select:hover {
+  background: var(--hover);
+}
+:root[data-theme] .pdf-viewport {
+  background: var(--reader-stage);
+}
+:root[data-theme] .reader-footer input {
+  background: var(--raised);
+  color: var(--text);
+}
+:root[data-theme] .reader-overlay {
+  background: var(--reader-bg);
+  color: var(--secondary);
+}
+:root[data-theme] .pdf-tools {
+  background: var(--sidebar-bg);
+  color: var(--secondary);
+  border-color: var(--line);
+}
+:root[data-theme] .pdf-tools > div {
+  background: var(--soft);
+}
+:root[data-theme] .pdf-tools .active {
+  background: var(--raised);
+  color: var(--accent);
+  box-shadow: none;
+}
+:root[data-theme] :is(.ocr-progress, .ocr-badge) {
+  background: var(--soft);
+  color: var(--accent);
+  border-color: var(--line);
+}
+:root[data-theme] .scan-warning {
+  background: var(--warning-bg);
+  color: var(--warning);
+}
+:root[data-theme] .detail-trigger {
+  color: var(--secondary);
+  background: var(--soft);
+}
+:root[data-theme] .detail-trigger:hover,
+:root[data-theme] .detail-trigger[aria-expanded='true'] {
+  background: var(--hover);
+  border-color: var(--line);
+}
+:root[data-theme] .detail-track {
+  background: var(--soft);
+  border-color: var(--line);
+}
+:root[data-theme] .detail-track input {
+  background: transparent;
+}
+:root[data-theme] .detail-track input::-webkit-slider-thumb {
+  background: var(--raised);
+  border-color: var(--line);
+}
+:root[data-theme] .detail-dots i {
+  background: var(--scroll-thumb);
+}
+:root[data-theme] .detail-labels button:hover {
+  background: transparent;
+  color: var(--accent);
+}
+:root[data-theme] .conversation::-webkit-scrollbar-track {
+  background: var(--scroll-track);
+}
+:root[data-theme] ::-webkit-scrollbar-thumb {
+  background: var(--scroll-thumb);
+  border-color: var(--scroll-track);
+}
+:root[data-theme] ::-webkit-scrollbar-thumb:hover {
+  background: var(--muted);
+}
+:root[data-theme] ::selection {
+  background: var(--selected);
+  color: var(--text);
+}
+:root[data-theme] .toast {
+  background: var(--raised);
+  color: var(--text);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow);
+}
+.appearance-setting {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 0 18px;
+  margin: 0 0 18px;
+  border-bottom: 1px solid var(--line);
+  font-size: 12px;
+}
+.appearance-setting select {
+  min-width: 110px;
+}
+:root[data-theme='night'] .detail-track input::-webkit-slider-thumb {
+  background: #a8bca7;
+  border-color: #b8cbb5;
+}

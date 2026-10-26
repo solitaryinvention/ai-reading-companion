@@ -1,6 +1,6 @@
 {
   "name": "reading-companion",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "description": "本地 AI 读书助手",
   "author": "Reading Companion",
   "private": true,
@@ -19,6 +19,7 @@
     "test:chat-scroll": "node tests/chat-scroll.mjs",
     "test:knowledge": "node tests/knowledge.mjs",
     "test:detail": "node tests/detail.mjs",
+    "test:themes": "node tests/themes.mjs",
     "package": "npm run build && electron-builder --win nsis --x64",
     "format": "prettier --write src electron tests scripts *.json *.ts *.html README.md",
     "test:packaged": "node tests/desktop.mjs --packaged",

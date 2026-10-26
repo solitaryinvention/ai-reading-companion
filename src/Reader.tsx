@@ -869,7 +869,8 @@ export const Reader = forwardRef<ReaderHandle, Props>(function Reader(
             </>
           )}
           <select
-            aria-label="阅读背景"
+            aria-label="界面主题"
+            title="切换整个应用的主题"
             value={settings.theme}
             onChange={(e) => updateSettings({ theme: e.target.value as Settings['theme'] })}
           >

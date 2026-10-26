@@ -1,4 +1,4 @@
-import { app, BrowserWindow, dialog, ipcMain, session, shell, clipboard } from 'electron';
+import { app, BrowserWindow, dialog, ipcMain, session, shell, clipboard, nativeTheme } from 'electron';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import path from 'node:path';
 import { mkdirSync, readFileSync, writeFileSync, unlinkSync, existsSync } from 'node:fs';
@@ -32,13 +32,14 @@ app.whenReady().then(async () => {
       if (!win.isDestroyed()) win.webContents.send('reader:connection', status);
     },
   );
+  nativeTheme.themeSource = store.settings().theme === 'night' ? 'dark' : 'light';
   const win = new BrowserWindow({
     width: 1480,
     height: 960,
     minWidth: 1000,
     minHeight: 650,
     title: 'AI 读书助手',
-    backgroundColor: '#f7f6f2',
+    backgroundColor: store.settings().theme === 'night' ? '#191d1c' : '#f7f6f2',
     webPreferences: {
       preload: path.join(here, 'preload.cjs'),
       contextIsolation: true,
@@ -256,7 +257,17 @@ app.whenReady().then(async () => {
       const s = store.session(id);
       store.put('session', id, { ...s, draft });
     },
-    settings: (value: Partial<Settings>) => store.patchSettings(value),
+    settings: (value: Partial<Settings>) => {
+      if (value.theme !== undefined && !['paper', 'white', 'night'].includes(value.theme))
+        throw new Error('无效主题');
+      store.patchSettings(value);
+      if (value.theme) {
+        nativeTheme.themeSource = value.theme === 'night' ? 'dark' : 'light';
+        win.setBackgroundColor(
+          value.theme === 'night' ? '#191d1c' : value.theme === 'white' ? '#ffffff' : '#f7f6f2',
+        );
+      }
+    },
     login: async () => {
       const status = await connection.login();
       win.show();

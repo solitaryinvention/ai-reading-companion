@@ -93,17 +93,17 @@ try {
       .contentDocument.defaultView.getComputedStyle(document.querySelector('iframe').contentDocument.body)
       .fontFamily.includes('Microsoft YaHei'),
   );
-  await page.getByRole('combobox', { name: '阅读背景', exact: true }).selectOption('night');
+  await page.getByRole('combobox', { name: '界面主题', exact: true }).selectOption('night');
   await page.waitForFunction(() => {
     const d = document.querySelector('iframe').contentDocument;
-    return d.defaultView.getComputedStyle(d.documentElement).backgroundColor === 'rgb(32, 35, 34)';
+    return d.defaultView.getComputedStyle(d.documentElement).backgroundColor === 'rgb(32, 38, 35)';
   });
   await page.locator('.reader-panel').screenshot({ path: 'test-results/epub-reading-night.png' });
   await app.close();
   await launch();
   await page.getByRole('combobox', { name: '阅读字体', exact: true }).waitFor();
   assert.equal(await page.getByRole('combobox', { name: '阅读字体', exact: true }).inputValue(), 'sans');
-  assert.equal(await page.getByRole('combobox', { name: '阅读背景', exact: true }).inputValue(), 'night');
+  assert.equal(await page.getByRole('combobox', { name: '界面主题', exact: true }).inputValue(), 'night');
   console.log(
     'PASS: publisher oversized fonts normalized, readable text width and indent, font switching, night background and persisted preferences.',
   );

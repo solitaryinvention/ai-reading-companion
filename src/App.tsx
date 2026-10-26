@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import {
@@ -87,6 +87,9 @@ export function App() {
   const book = data?.books.find((b) => b.id === active),
     session = data?.sessions.find((s) => s.id === sid);
   const notify = (text: string) => setToast(text);
+  useLayoutEffect(() => {
+    document.documentElement.dataset.theme = data?.settings.theme || 'paper';
+  }, [data?.settings.theme]);
   const refresh = async () => {
     const next = await window.reader.snapshot();
     setData(next);
@@ -833,6 +836,8 @@ export function App() {
       )}
       {settingsOpen && (
         <ConnectionDialog
+          theme={data.settings.theme}
+          onTheme={(theme) => updateSettings({ theme })}
           status={data.connection}
           models={models}
           selected={data.settings.model || ''}
@@ -920,6 +925,8 @@ export function App() {
 }
 
 function ConnectionDialog({
+  theme,
+  onTheme,
   status,
   models,
   selected,
@@ -929,6 +936,8 @@ function ConnectionDialog({
   onRefresh,
   notify,
 }: {
+  theme: Settings['theme'];
+  onTheme: (theme: Settings['theme']) => void;
   status: ConnectionStatus;
   models: Model[];
   selected: string;
@@ -966,7 +975,7 @@ function ConnectionDialog({
         <header>
           <div>
             <span className="eyebrow">模型连接</span>
-            <h2>连接设置</h2>
+            <h2>设置</h2>
           </div>
           <button
             title="关闭设置"
@@ -978,6 +987,14 @@ function ConnectionDialog({
             <X size={20} />
           </button>
         </header>
+        <div className="appearance-setting">
+          <label htmlFor="app-theme">界面主题</label>
+          <select id="app-theme" value={theme} onChange={(e) => onTheme(e.target.value as Settings['theme'])}>
+            <option value="paper">纸色</option>
+            <option value="white">明亮</option>
+            <option value="night">夜间</option>
+          </select>
+        </div>
         <p className="muted">
           书籍保存在本地；只有发送问题时，所选原文与会话上下文才会传给你选择的 OpenAI 或 DeepSeek。
         </p>

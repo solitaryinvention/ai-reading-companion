@@ -3,9 +3,9 @@ import type { Settings } from './types';
 /** Reader typography takes precedence over publisher sizes without changing book text or CFIs. */
 export function epubTheme(s: Settings) {
   const night = s.theme === 'night';
-  const bg = night ? '#202322' : s.theme === 'white' ? '#ffffff' : '#f8f5ed';
-  const ink = night ? '#c6c8c3' : '#323630';
-  const muted = night ? '#8b928a' : '#90958a';
+  const bg = night ? '#202623' : s.theme === 'white' ? '#ffffff' : '#f8f5ed';
+  const ink = night ? '#dbe1da' : '#323630';
+  const muted = night ? '#96a292' : '#737d6f';
   const font =
     s.readingFont === 'sans'
       ? '"Microsoft YaHei", "PingFang SC", system-ui, sans-serif'
