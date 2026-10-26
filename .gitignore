@@ -1,0 +1,13 @@
+node_modules/
+dist/
+dist-electron/
+release/
+test-results/
+.runtime/
+*.log
+.env
+.env.*
+!.env.example
+credentials.enc
+library.sqlite*
+host-id

@@ -1,0 +1,91 @@
+{
+  "name": "reading-companion",
+  "version": "0.5.0",
+  "description": "本地 AI 读书助手",
+  "author": "Reading Companion",
+  "private": true,
+  "type": "module",
+  "main": "dist-electron/main.js",
+  "scripts": {
+    "dev": "npm start",
+    "build": "tsc --noEmit && vite build && node scripts/assets.mjs && esbuild electron/main.ts --bundle --platform=node --format=esm --packages=external --outfile=dist-electron/main.js && esbuild electron/preload.ts --bundle --platform=node --format=cjs --external:electron --outfile=dist-electron/preload.cjs && esbuild node_modules/tesseract.js/src/worker-script/node/index.js --bundle --platform=node --format=cjs --external:tesseract.js-core --outfile=dist-electron/ocr-worker.cjs",
+    "start": "npm run build && electron .",
+    "test": "vitest run",
+    "test:desktop": "node tests/desktop.mjs",
+    "test:conversion": "node tests/conversion.mjs",
+    "test:epub-layout": "node tests/epub-layout.mjs",
+    "test:navigation": "node tests/navigation.mjs",
+    "test:highlights": "node tests/highlights.mjs",
+    "test:chat-scroll": "node tests/chat-scroll.mjs",
+    "test:knowledge": "node tests/knowledge.mjs",
+    "test:detail": "node tests/detail.mjs",
+    "package": "npm run build && electron-builder --win nsis --x64",
+    "format": "prettier --write src electron tests scripts *.json *.ts *.html README.md",
+    "test:packaged": "node tests/desktop.mjs --packaged",
+    "test:reader": "node tests/reader-tools.mjs",
+    "test:reader:packaged": "node tests/reader-tools.mjs --packaged"
+  },
+  "dependencies": {
+    "@tesseract.js-data/chi_sim": "1.0.0",
+    "@tesseract.js-data/eng": "1.0.0",
+    "epubjs": "0.3.93",
+    "jose": "6.2.13",
+    "jszip": "3.10.2",
+    "lucide-react": "1.61.0",
+    "pdfjs-dist": "6.4.299",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
+    "react-markdown": "10.1.0",
+    "remark-gfm": "4.0.1",
+    "sql.js": "1.15.1",
+    "tesseract.js": "7.0.0"
+  },
+  "build": {
+    "appId": "local.reading.companion",
+    "productName": "AI读书助手",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "dist-electron/**/*",
+      "package.json"
+    ],
+    "asarUnpack": [
+      "node_modules/sql.js/dist/sql-wasm.wasm",
+      "dist-electron/ocr-worker.cjs",
+      "dist-electron/ocr-data/**/*",
+      "node_modules/tesseract.js-core/**/*"
+    ],
+    "win": {
+      "target": "nsis",
+      "signAndEditExecutable": false
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true
+    },
+    "npmRebuild": false,
+    "electronDist": "node_modules/electron/dist"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.64.1",
+    "@types/node": "26.6.5",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "@types/sql.js": "1.4.11",
+    "@vitejs/plugin-react": "6.1.2",
+    "electron": "45.0.0",
+    "electron-builder": "26.18.0",
+    "esbuild": "0.28.2",
+    "pdf-lib": "1.17.1",
+    "prettier": "3.9.10",
+    "typescript": "7.0.2",
+    "vite": "8.3.5",
+    "vitest": "5.0.5"
+  },
+  "overrides": {
+    "@xmldom/xmldom": "^0.9.10"
+  }
+}
