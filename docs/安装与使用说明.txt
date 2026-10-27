@@ -1,9 +1,9 @@
-AI 读书助手 0.5.1 · Windows x64
+AI 读书助手 0.5.2 · Windows x64
 
 给好友的安装说明
 
 1. 请在 Windows 电脑上下载并解压整个 ZIP。
-2. 双击 AI读书助手 Setup 0.5.1.exe，按提示安装。
+2. 双击 AI读书助手 Setup 0.5.2.exe，按提示安装。
 3. 打开软件，导入自己的 PDF 或 EPUB。
 4. AI 功能需要自行连接账户，或填写自己的 DeepSeek API Key（独立计费）。
 5. 阅读、OCR、PDF 转文字 EPUB 不需要 AI 账号。

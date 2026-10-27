@@ -18,6 +18,108 @@ const response = (events: unknown[]) =>
     headers: { 'Content-Type': 'text/event-stream' },
   });
 describe('chat lifecycle', () => {
+  it.each(['chatgpt', 'api'])(
+    'sends full context above 100k without duplicating assistant source metadata (%s)',
+    async (mode) => {
+      const { dir, store, session } = await setup();
+      const emitted: ChatEvent[] = [];
+      const original = '原文'.repeat(60000);
+      const ref = { id: 'source', bookId: 'b', title: 'Book', label: '第 1 页', text: original };
+      store.put('message', 'old-user', {
+        id: 'old-user',
+        sessionId: session.id,
+        role: 'user',
+        text: '上次问题',
+        refs: [ref],
+        status: 'complete',
+        createdAt: '2026-01-01T00:00:00Z',
+      });
+      store.put('message', 'old-answer', {
+        id: 'old-answer',
+        sessionId: session.id,
+        role: 'assistant',
+        text: '既有回答',
+        refs: [ref],
+        status: 'complete',
+        createdAt: '2026-01-01T00:00:01Z',
+      });
+      const request = vi.fn(async (_url: string, _init: RequestInit) =>
+        mode === 'api'
+          ? response([{ choices: [{ delta: { content: '回答' }, finish_reason: 'stop' }] }])
+          : response([{ type: 'response.output_text.delta', delta: '回答' }, { type: 'response.completed' }]),
+      );
+      const chat = new Chat(
+        store,
+        { request, status: () => ({ mode }), credential: async () => 'fixture' } as any,
+        (e) => emitted.push(e),
+      );
+      try {
+        await chat.send({
+          requestId: 'large',
+          sessionId: session.id,
+          model: 'fixture',
+          text: '继续讲解',
+          refs: [],
+          chapter: { ...ref, id: 'chapter', text: '本次原文'.repeat(30000) },
+        });
+        await vi.waitFor(() => expect(emitted.at(-1)?.type).toBe('complete'));
+        const payload = JSON.parse(request.mock.calls[0][1].body as string);
+        const history = mode === 'api' ? payload.messages.slice(1) : payload.input;
+        expect(history[0].content).toContain(original);
+        expect(history[1].content).toBe('既有回答');
+        expect(history[2].content).toContain('本次原文'.repeat(30000));
+        expect(history[2].content).toContain('继续讲解');
+      } finally {
+        rmSync(dir, { recursive: true, force: true });
+      }
+    },
+  );
+  it('preserves a large question and references when the server rejects context, and retries without duplication', async () => {
+    const { dir, store, session } = await setup();
+    const emitted: ChatEvent[] = [];
+    const request = vi
+      .fn()
+      .mockResolvedValueOnce(
+        Response.json(
+          { error: { code: 'context_length_exceeded', message: 'Context exceeds this model window' } },
+          { status: 400 },
+        ),
+      )
+      .mockResolvedValueOnce(
+        response([{ type: 'response.output_text.delta', delta: '回答' }, { type: 'response.completed' }]),
+      );
+    const chat = new Chat(store, { request, credential: async () => 'fixture' } as any, (e) =>
+      emitted.push(e),
+    );
+    try {
+      const text = '问题'.repeat(55000);
+      await chat.send({
+        requestId: 'reject',
+        sessionId: session.id,
+        model: 'fixture',
+        text,
+        refs: [{ id: 'r', bookId: 'b', title: 'Book', label: '第 1 页', text: '原文' }],
+      });
+      await vi.waitFor(() => expect(emitted.at(-1)?.type).toBe('failed'));
+      expect(emitted.at(-1)?.error).toContain('Context exceeds this model window');
+      const user = store.messages(session.id)[0];
+      expect(user.text).toBe(text);
+      expect(user.refs[0].text).toBe('原文');
+      await chat.send({
+        requestId: 'retry-large',
+        sessionId: session.id,
+        model: 'fixture',
+        text: '',
+        refs: [],
+        retryId: user.id,
+      });
+      await vi.waitFor(() => expect(emitted.at(-1)?.type).toBe('complete'));
+      expect(store.messages(session.id).filter((m) => m.role === 'user')).toHaveLength(1);
+      expect(JSON.parse(request.mock.calls[1][1].body).input[0].content).toContain(text);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
   it('isolates model history by book and resumes its own context', async () => {
     const { dir, store, session } = await setup();
     store.put('book', 'other', { id: 'other', title: 'Other Book', format: 'epub' });
@@ -98,7 +200,7 @@ describe('chat lifecycle', () => {
       expect(store.messages(session.id)).toHaveLength(2);
       expect(store.messages(session.id)[1].text).toBe('解释');
       expect(request.mock.calls[0][0]).toBe('https://api.deepseek.com/chat/completions');
-      const payload = JSON.parse(request.mock.calls[0][1].body);
+      const payload = JSON.parse(request.mock.calls[0][1].body as string);
       expect(payload.messages[0].role).toBe('system');
       expect(payload.messages[1].content).toBe('原文问题');
       expect(payload.input).toBeUndefined();

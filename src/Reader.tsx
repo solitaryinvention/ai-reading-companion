@@ -581,7 +581,6 @@ export const Reader = forwardRef<ReaderHandle, Props>(function Reader(
           end > pdf.current.numPages
         )
           throw new Error('请输入有效的 PDF 起止页码');
-        if (end - start > 150) throw new Error('请选择不超过 151 页的范围');
         let text = '';
         for (let n = start; n <= end; n++) {
           const p = await pdf.current.getPage(n);
@@ -590,7 +589,6 @@ export const Reader = forwardRef<ReaderHandle, Props>(function Reader(
           if (!content.trim() && !cached)
             throw new Error(`第 ${n} 页没有可提取文字，请先在该页点击“识别本页”`);
           text += `\n[第 ${n} 页${cached ? ' · OCR' : ''}]\n` + content;
-          if (text.length > 100000) throw new Error('所选范围超过 100,000 字符，请缩小范围');
         }
         if (!text.replace(/\[第 \d+ 页\]/g, '').trim())
           throw new Error('所选页面没有可用文字，请先识别扫描页');

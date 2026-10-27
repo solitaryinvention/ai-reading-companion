@@ -1,6 +1,6 @@
 {
   "name": "reading-companion",
-  "version": "0.5.1",
+  "version": "0.5.2",
   "description": "本地 AI 读书助手",
   "author": "Reading Companion",
   "private": true,
@@ -24,7 +24,8 @@
     "format": "prettier --write src electron tests scripts *.json *.ts *.html README.md",
     "test:packaged": "node tests/desktop.mjs --packaged",
     "test:reader": "node tests/reader-tools.mjs",
-    "test:reader:packaged": "node tests/reader-tools.mjs --packaged"
+    "test:reader:packaged": "node tests/reader-tools.mjs --packaged",
+    "test:context": "node tests/context.mjs"
   },
   "dependencies": {
     "@tesseract.js-data/chi_sim": "1.0.0",

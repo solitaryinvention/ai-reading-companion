@@ -86,12 +86,6 @@ export class Chat {
       };
     }
     const messages = [...history.filter((m) => m.status === 'complete'), user];
-    // Conservative character ceiling prevents silent truncation. Server token limits are also handled.
-    if (
-      messages.reduce((n, m) => n + (m.role === 'user' ? wireText(m.text, m.refs) : m.text).length, 0) >
-      100_000
-    )
-      throw new Error('上下文超过 100,000 字符，请减少章节范围或新建会话');
     if (!input.retryId) this.store.put('message', user.id, user);
     const sources = Array.from(new Map(messages.flatMap((m) => m.refs).map((r) => [r.id, r])).values());
     const answer: Message = {
@@ -137,11 +131,6 @@ export class Chat {
         .entries.slice(0, 20)
         .map((t) => ({ id: t.id, title: t.title }));
       const personalized = `\n本书 agent.md（用户的阅读偏好）：\n${profile.text}\n本书既有授课进度：\n${profile.progress || '尚未确认'}\n阅读位置及目录元数据（不是正文）：${readingContext}\n跨书思想档案索引（仅标题，不含其他书籍聊天）：${JSON.stringify(archiveTitles)}\n仅当前发送的书籍摘录和会话历史可作为已阅读依据，目录和阅读位置不代表用户已理解内容。\n${MEMORY_INSTRUCTIONS}`;
-      if (
-        personalized.length + messages.reduce((sum, m) => sum + wireText(m.text, m.refs).length, 0) >
-        100000
-      )
-        throw new Error('提示词、进度与会话超过上下文限制，请缩短提示词或新建会话');
       const instructions =
         bookContext +
         personalized +
@@ -185,8 +174,9 @@ export class Chat {
           throw new Error('DeepSeek 账户余额不足，请到 DeepSeek 平台充值后重试；问题已保留');
         if (response.status === 429)
           throw new Error('额度不足或请求过于频繁，请检查用量后重试' + (code ? `（${code}）` : ''));
+        const explanation = typeof d.error?.message === 'string' ? d.error.message.slice(0, 2000) : '';
         throw new Error(
-          `请求失败（${response.status}${code ? ' / ' + code : ''}），请检查模型权限或减少上下文`,
+          `服务端拒绝请求（${response.status}${code ? ' / ' + code : ''}）${explanation ? '：' + explanation : ''}。问题与引用已保留`,
         );
       }
       if (!response.body) throw new Error('服务器没有返回数据流');
