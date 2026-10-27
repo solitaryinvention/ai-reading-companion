@@ -1,9 +1,11 @@
 import { describe, it, expect, vi } from 'vitest';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdtempSync, rmSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { Store } from '../electron/store';
 import { Chat } from '../electron/chat';
+import { BookMemory } from '../electron/book-memory';
+import { TEACHING_INSTRUCTIONS } from '../electron/teaching';
 import type { ChatEvent } from '../src/types';
 vi.mock('electron', () => ({ safeStorage: {}, shell: {} }));
 async function setup() {
@@ -18,6 +20,63 @@ const response = (events: unknown[]) =>
     headers: { 'Content-Type': 'text/event-stream' },
   });
 describe('chat lifecycle', () => {
+  it.each(['chatgpt', 'api'])(
+    'applies shared teaching rules to existing book agents at every detail level (%s)',
+    async (mode) => {
+      const { dir, store, session } = await setup();
+      const memory = new BookMemory(store);
+      const original = '本书自定义：平静叙述，按章节顺序讲解。CUSTOM_AGENT_UNCHANGED';
+      memory.saveAgent('b', original);
+      memory.saveProgress('b', '已讲过第一章；用户理解程度尚未确认。');
+      const profile = memory.profile('b');
+      const before = readFileSync(profile.path);
+      const emitted: ChatEvent[] = [];
+      const payloads: any[] = [];
+      const request = vi.fn(async (_url: string, init: RequestInit) => {
+        payloads.push(JSON.parse(init.body as string));
+        return mode === 'api'
+          ? response([{ choices: [{ delta: { content: '测试回答' }, finish_reason: 'stop' }] }])
+          : response([
+              { type: 'response.output_text.delta', delta: '测试回答' },
+              { type: 'response.completed' },
+            ]);
+      });
+      const chat = new Chat(
+        store,
+        { request, status: () => ({ mode }), credential: async () => 'fixture' } as any,
+        (event) => emitted.push(event),
+        memory,
+      );
+      try {
+        for (const level of [1, 2, 3, 4, 5] as const) {
+          await chat.send({
+            requestId: 'teach-' + level,
+            sessionId: session.id,
+            model: 'fixture',
+            text: level === 5 ? '这次请分析作者的写作结构' : '请直接讲清这段内容',
+            refs: [],
+            detailLevel: level,
+          });
+          await vi.waitFor(() => expect(emitted.filter((e) => e.type === 'complete')).toHaveLength(level));
+          const body = payloads[level - 1];
+          const instructions = mode === 'api' ? body.messages[0].content : body.instructions;
+          expect(instructions).toContain(TEACHING_INSTRUCTIONS);
+          expect(instructions).toContain(original);
+          expect(instructions).toContain(`${level}/5`);
+          expect(instructions).toContain('不是正文');
+          expect(instructions).toContain('引用');
+          const messages = mode === 'api' ? body.messages.slice(1) : body.input;
+          expect(messages.at(-1).content).toBe(
+            level === 5 ? '这次请分析作者的写作结构' : '请直接讲清这段内容',
+          );
+        }
+        expect(readFileSync(profile.path)).toEqual(before);
+        expect(memory.profile('b').progress).toBe(profile.progress);
+      } finally {
+        rmSync(dir, { recursive: true, force: true });
+      }
+    },
+  );
   it.each(['chatgpt', 'api'])(
     'sends full context above 100k without duplicating assistant source metadata (%s)',
     async (mode) => {

@@ -144,6 +144,8 @@ try {
   );
   const body = await app.evaluate(() => JSON.stringify(globalThis.__knowledgeRequests[0]));
   assert.ok(body.includes('A_AGENT_PRIVATE'));
+  assert.ok(body.includes('让没有读过原文的人，也能独立读懂这次讲解'));
+  assert.ok(body.includes('用户这一次明确提出的任务、提问角度和篇幅要求优先'));
   assert.ok(!body.includes('B_AGENT_PRIVATE'));
   assert.ok(
     !(await page
@@ -186,4 +188,3 @@ try {
 } finally {
   if (app) await app.close();
 }
-
