@@ -16,7 +16,7 @@ import {
   X,
   Copy,
 } from 'lucide-react';
-import type { Book, SourceReference, Settings, TocItem, OcrPage, OcrProgress, SavedHighlight } from './types';
+import type { Book, SourceReference, Settings, TocItem, OcrPage, OcrProgress } from './types';
 import { cleanPdfText } from './reader-utils';
 import { countCharacters } from './chapter-count';
 pdfjs.GlobalWorkerOptions.workerSrc = workerUrl;
@@ -48,19 +48,15 @@ function PdfPage({
   page,
   scale,
   visible,
-  onSelect,
   ocr,
   onRecognize,
-  highlights,
 }: {
   doc: pdfjs.PDFDocumentProxy;
   page: number;
   scale: number;
   visible: boolean;
-  onSelect: (ref: Omit<SourceReference, 'id' | 'bookId' | 'title' | 'label'>) => void;
   ocr?: OcrPage;
   onRecognize: () => void;
-  highlights: SavedHighlight[];
 }) {
   const host = useRef<HTMLDivElement>(null);
   const [base, setBase] = useState({ width: 600, height: 820 });
@@ -122,48 +118,8 @@ function PdfPage({
     };
   }, [doc, page, scale, visible, ocr]);
   return (
-    <div
-      className="pdf-sheet"
-      data-page={page}
-      ref={host}
-      style={size}
-      onMouseUp={() => {
-        const selection = window.getSelection();
-        if (!selection?.rangeCount || !selection.toString().trim()) return;
-        const range = selection.getRangeAt(0);
-        if (!host.current?.contains(range.commonAncestorContainer)) return;
-        const bounds = host.current.getBoundingClientRect();
-        onSelect({
-          text: selection.toString().trim(),
-          page,
-          ocr: !!ocr,
-          rects: Array.from(range.getClientRects())
-            .filter((r) => r.width && r.height)
-            .map((r) => ({
-              x: (r.x - bounds.x) / bounds.width,
-              y: (r.y - bounds.y) / bounds.height,
-              width: r.width / bounds.width,
-              height: r.height / bounds.height,
-            })),
-        });
-      }}
-    >
+    <div className="pdf-sheet" data-page={page} ref={host} style={size}>
       <canvas />
-      {highlights.flatMap((h) =>
-        (h.rects || []).map((r, i) => (
-          <div
-            key={h.id + ':' + i}
-            className="saved-pdf-highlight"
-            aria-hidden="true"
-            style={{
-              left: r.x * 100 + '%',
-              top: r.y * 100 + '%',
-              width: r.width * 100 + '%',
-              height: r.height * 100 + '%',
-            }}
-          />
-        )),
-      )}
       <div className="textLayer" />
       {ocr && (
         <div className="ocr-text-layer" aria-label={`第 ${page} 页 OCR 文字层`}>
@@ -306,20 +262,6 @@ export const Reader = forwardRef<ReaderHandle, Props>(function Reader(
     }
   };
   const epub = useRef<EpubController | null>(null);
-  const [highlights, setHighlights] = useState<SavedHighlight[]>([]);
-  const [highlightsOpen, setHighlightsOpen] = useState(false);
-  useEffect(() => {
-    let gone = false;
-    void window.reader
-      .highlights(book.id)
-      .then((list) => {
-        if (!gone) setHighlights(list);
-      })
-      .catch((e) => onError(e.message));
-    return () => {
-      gone = true;
-    };
-  }, [book.id]);
   const current = useRef({
     page: book.position?.page || 1,
     cfi: book.position?.cfi || '',
@@ -333,11 +275,7 @@ export const Reader = forwardRef<ReaderHandle, Props>(function Reader(
     [ready, setReady] = useState(false),
     [loading, setLoading] = useState(true),
     [error, setError] = useState('');
-  useEffect(() => {
-    epub.current?.setHighlights(highlights);
-  }, [highlights, ready]);
-  const [selected, setSelected] = useState<SourceReference | null>(null),
-    [visible, setVisible] = useState<Set<number>>(new Set([book.position?.page || 1]));
+  const [visible, setVisible] = useState<Set<number>>(new Set([book.position?.page || 1]));
   const [label, setLabel] = useState('正在打开…');
   const lastPosition = useRef(book.position);
   const toc = useRef<TocItem[]>([]);
@@ -358,7 +296,6 @@ export const Reader = forwardRef<ReaderHandle, Props>(function Reader(
   const zoomRef = useRef(settings.zoom);
   zoomRef.current = settings.zoom;
   const changeZoom = (value: number, point?: { x: number; y: number }) => {
-    setSelected(null);
     window.getSelection()?.removeAllRanges();
     const root = host.current;
     if (!root) return;
@@ -534,16 +471,7 @@ export const Reader = forwardRef<ReaderHandle, Props>(function Reader(
     if (changed) void window.reader.position(book.id, position!);
     else saveTimer.current = setTimeout(() => void window.reader.position(book.id, position!), 300);
   };
-  const quote = (value: Omit<SourceReference, 'id' | 'bookId' | 'title' | 'label'>) =>
-    setSelected({
-      ...value,
-      id: crypto.randomUUID(),
-      bookId: book.id,
-      title: book.title,
-      label: value.page ? `第 ${value.page} 页${value.ocr ? ' · OCR' : ''}` : current.current.label,
-    });
   const jump = async (target: string | number | SourceReference) => {
-    setSelected(null);
     if (pdf.current) {
       const num =
         typeof target === 'number' ? target : typeof target === 'object' ? target.page : parseInt(target);
@@ -668,7 +596,6 @@ export const Reader = forwardRef<ReaderHandle, Props>(function Reader(
             props.current.onInfo(info);
           },
           position: save,
-          select: quote,
           error: (message) => props.current.onError(message),
         });
         epub.current = controller;
@@ -786,9 +713,6 @@ export const Reader = forwardRef<ReaderHandle, Props>(function Reader(
       <header className="reader-toolbar">
         <span className="eyebrow">正在阅读 · {book.format.toUpperCase()}</span>
         <div className="toolbar-controls">
-          <button aria-label="书籍划线" disabled={!ready} onClick={() => setHighlightsOpen(true)}>
-            划线{highlights.length ? ` · ${highlights.length}` : ''}
-          </button>
           {book.format === 'epub' && (
             <button
               title="导出 EPUB"
@@ -878,49 +802,6 @@ export const Reader = forwardRef<ReaderHandle, Props>(function Reader(
           </select>
         </div>
       </header>
-      {highlightsOpen && (
-        <div className="modal-shade" onClick={() => setHighlightsOpen(false)}>
-          <div
-            className="modal highlight-list"
-            role="dialog"
-            aria-label="书籍划线"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <header>
-              <h2>划线 · {highlights.length}</h2>
-              <button aria-label="关闭划线列表" onClick={() => setHighlightsOpen(false)}>
-                <X size={18} />
-              </button>
-            </header>
-            {!highlights.length && <p className="muted">选中原文后，点击「划线」保存。</p>}
-            {highlights.map((h) => (
-              <article key={h.id}>
-                <button
-                  className="highlight-location"
-                  onClick={() => {
-                    setHighlightsOpen(false);
-                    void jump(h).catch((e) => onError(e.message));
-                  }}
-                >
-                  <small>{h.label}</small>
-                  <span>{h.text}</span>
-                </button>
-                <button
-                  aria-label="删除划线"
-                  onClick={() =>
-                    void window.reader
-                      .removeHighlight(book.id, h.id)
-                      .then(() => setHighlights((list) => list.filter((x) => x.id !== h.id)))
-                      .catch((e) => onError(e.message))
-                  }
-                >
-                  删除
-                </button>
-              </article>
-            ))}
-          </div>
-        </div>
-      )}
       {conversionStatus && (
         <div className="modal-shade">
           <div className="modal" role="dialog" aria-label="PDF 转 EPUB 进度">
@@ -977,7 +858,6 @@ export const Reader = forwardRef<ReaderHandle, Props>(function Reader(
               className={panMode ? 'active' : ''}
               onClick={() => {
                 setPanMode(true);
-                setSelected(null);
                 window.getSelection()?.removeAllRanges();
               }}
             >
@@ -1065,8 +945,6 @@ export const Reader = forwardRef<ReaderHandle, Props>(function Reader(
               page={i + 1}
               scale={settings.zoom}
               visible={visible.has(i + 1)}
-              onSelect={quote}
-              highlights={highlights.filter((h) => h.page === i + 1)}
               ocr={ocrPages[i + 1]}
               onRecognize={() => void recognize(i + 1)}
             />
@@ -1129,41 +1007,6 @@ export const Reader = forwardRef<ReaderHandle, Props>(function Reader(
               引用识别文字
             </button>
           </footer>
-        </div>
-      )}
-      {selected && (
-        <div className="selection-bar">
-          <span>
-            {selected.text.length} 字 · {selected.label}
-          </span>
-          <button
-            className="primary"
-            onMouseDown={(e) => e.preventDefault()}
-            onClick={() => {
-              onQuote(selected);
-              setSelected(null);
-            }}
-          >
-            <Quote size={14} />
-            引用到聊天
-          </button>
-          <button
-            aria-label="保存划线"
-            onMouseDown={(e) => e.preventDefault()}
-            onClick={() =>
-              void window.reader
-                .saveHighlight(selected)
-                .then((saved) => {
-                  setHighlights((list) => (list.some((h) => h.id === saved.id) ? list : [...list, saved]));
-                  setSelected(null);
-                  window.getSelection()?.removeAllRanges();
-                })
-                .catch((e) => onError(e.message))
-            }
-          >
-            划线
-          </button>
-          <button onClick={() => setSelected(null)}>×</button>
         </div>
       )}
       <footer className="reader-footer">

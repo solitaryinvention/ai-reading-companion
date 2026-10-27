@@ -1,9 +1,10 @@
 import { _electron as electron } from '@playwright/test';
 import { fixtures } from './fixtures.mjs';
-import { mkdirSync } from 'node:fs';
+import initSqlJs from 'sql.js';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import assert from 'node:assert/strict';
-const dir = path.resolve('test-results/highlights-' + Date.now());
+const dir = path.resolve('test-results/removed-highlights-' + Date.now());
 mkdirSync(dir, { recursive: true });
 const env = { ...process.env, READER_DATA_DIR: dir };
 delete env.ELECTRON_RUN_AS_NODE;
@@ -15,78 +16,58 @@ async function launch() {
       : { args: ['.'], env },
   );
   page = await app.firstWindow();
-  page.setDefaultTimeout(20000);
   await page.getByRole('button', { name: '导入书籍', exact: true }).waitFor();
 }
 try {
   await launch();
-  await page.evaluate(
-    async (input) => window.reader.importBooks(input.map((f) => ({ ...f, bytes: new Uint8Array(f.bytes) }))),
+  const imported = await page.evaluate(
+    async (files) => window.reader.importBooks(files.map((f) => ({ ...f, bytes: new Uint8Array(f.bytes) }))),
     await fixtures(),
   );
   await app.close();
+  const SQL = await initSqlJs();
+  const file = path.join(dir, 'library.sqlite');
+  const db = new SQL.Database(readFileSync(file));
+  const book = imported.books.find((b) => b.format === 'pdf');
+  db.run('INSERT INTO records VALUES (?,?,?)', [
+    'highlight',
+    'legacy-highlight',
+    JSON.stringify({
+      id: 'legacy-highlight',
+      bookId: book.id,
+      page: 1,
+      text: 'Legacy text',
+      rects: [{ x: 0.1, y: 0.1, width: 0.5, height: 0.1 }],
+    }),
+  ]);
+  writeFileSync(file, db.export());
+  db.close();
   await launch();
-  await page.locator('.book-select').filter({ hasText: 'PDF' }).click();
-  await page.locator('.pdf-sheet[data-ready="true"] .textLayer span').first().waitFor();
-  await page.evaluate(() => {
-    const span = document.querySelector('.pdf-sheet .textLayer span');
-    const r = document.createRange();
-    r.selectNodeContents(span);
-    const s = window.getSelection();
-    s.removeAllRanges();
-    s.addRange(r);
-    span.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
-  });
-  await page.getByRole('button', { name: '保存划线', exact: true }).click();
-  await page.locator('.saved-pdf-highlight').first().waitFor();
-  const state = await page.evaluate(() => window.reader.snapshot());
-  const pdf = state.books.find((b) => b.format === 'pdf'),
-    epub = state.books.find((b) => b.format === 'epub');
-  assert.equal((await page.evaluate((id) => window.reader.highlights(id), pdf.id)).length, 1);
-  assert.equal((await page.evaluate((id) => window.reader.highlights(id), epub.id)).length, 0);
-  await page.locator('.book-select').filter({ hasText: 'EPUB' }).click();
-  await page.waitForFunction(() => document.querySelector('iframe')?.contentDocument?.querySelector('p'));
-  await page.evaluate(() => {
-    const d = document.querySelector('iframe').contentDocument;
-    const r = d.createRange();
-    r.selectNodeContents(d.querySelector('p'));
-    const s = d.defaultView.getSelection();
-    s.removeAllRanges();
-    s.addRange(r);
-    d.querySelector('p').dispatchEvent(new d.defaultView.MouseEvent('mouseup', { bubbles: true }));
-  });
-  await page.getByRole('button', { name: '保存划线', exact: true }).click();
-  await page.waitForFunction(
-    () => document.querySelector('iframe').contentWindow.CSS.highlights.get('saved-reading')?.size === 1,
-  );
-  await page.getByRole('combobox', { name: '字号', exact: true }).selectOption('24');
-  assert.ok(
-    await page.evaluate(() =>
-      [...document.querySelector('iframe').contentWindow.CSS.highlights.get('saved-reading')][0]
-        .toString()
-        .includes('认真思考每一个问题'),
-    ),
-  );
+  for (const format of ['PDF', 'EPUB']) {
+    await page.locator('.book-select').filter({ hasText: format }).click();
+    if (format === 'PDF') await page.locator('.pdf-sheet[data-ready="true"]').first().waitFor();
+    else
+      await page.waitForFunction(() => document.querySelector('iframe')?.contentDocument?.querySelector('p'));
+    assert.equal(await page.getByRole('button', { name: '书籍划线', exact: true }).count(), 0);
+    assert.equal(await page.locator('.saved-pdf-highlight,.selection-bar').count(), 0);
+    assert.equal(
+      await page.evaluate(
+        () =>
+          'highlights' in window.reader ||
+          'saveHighlight' in window.reader ||
+          'removeHighlight' in window.reader,
+      ),
+      false,
+    );
+  }
   await app.close();
-  await launch();
-  await page.waitForFunction(
-    () => document.querySelector('iframe')?.contentWindow.CSS.highlights.get('saved-reading')?.size === 1,
-  );
-  await page.screenshot({ path: 'test-results/persistent-highlight.png' });
-  await page.getByRole('button', { name: '书籍划线', exact: true }).click();
-  await page.getByRole('button', { name: '删除划线', exact: true }).click();
-  await page.waitForFunction(
-    () => document.querySelector('iframe').contentWindow.CSS.highlights.get('saved-reading')?.size === 0,
-  );
-  await page.getByRole('button', { name: '关闭划线列表', exact: true }).click();
-  await page.locator('.book-select').filter({ hasText: 'PDF' }).click();
-  await page.locator('.saved-pdf-highlight').first().waitFor();
-  await page.getByRole('button', { name: '书籍划线', exact: true }).click();
-  await page.getByRole('button', { name: '删除划线', exact: true }).click();
-  assert.equal((await page.evaluate((id) => window.reader.highlights(id), pdf.id)).length, 0);
+  app = null;
+  const check = new SQL.Database(readFileSync(file));
+  assert.equal(check.exec("SELECT COUNT(*) FROM records WHERE kind='highlight'")[0].values[0][0], 1);
+  check.close();
   console.log(
-    'PASS: PDF and EPUB native selection highlights, book isolation, font reflow, restart restoration and deletion.',
+    'PASS: highlight entry, overlays and floating selection bar removed; legacy records retained and IPC removed.',
   );
 } finally {
-  if (app) await app.close();
+  await app?.close();
 }

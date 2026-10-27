@@ -17,27 +17,6 @@ export class EpubController {
   private settings: Settings;
   private title = '当前章节';
   private cleanups: (() => void)[] = [];
-  private highlights: SourceReference[] = [];
-  setHighlights(refs: SourceReference[]) {
-    this.highlights = refs;
-    this.paintHighlights();
-  }
-  private paintHighlights() {
-    const d = this.frame.contentDocument;
-    if (!d || !this.section) return;
-    const w = d.defaultView as any;
-    if (!w?.CSS?.highlights || !w.Highlight) return;
-    const ranges: Range[] = [];
-    for (const ref of this.highlights) {
-      try {
-        if (ref.cfi && this.book.spine.get(ref.cfi)?.index === this.section.index) {
-          const range = new EpubCFI(ref.cfi).toRange(d);
-          if (range) ranges.push(range);
-        }
-      } catch {}
-    }
-    w.CSS.highlights.set('saved-reading', new w.Highlight(...ranges));
-  }
   constructor(
     private host: HTMLElement,
     private meta: Book,
@@ -52,7 +31,6 @@ export class EpubController {
         tocTarget?: string | number;
       }) => void;
       position: (p: ReaderPosition) => void;
-      select: (ref: Omit<SourceReference, 'id' | 'bookId' | 'title' | 'label'>) => void;
       error: (text: string) => void;
     },
   ) {
@@ -168,41 +146,6 @@ export class EpubController {
         try {
           const d = this.frame.contentDocument!,
             w = this.frame.contentWindow!;
-          this.paintHighlights();
-          const onSelect = () => {
-            const selection = w.getSelection();
-            if (!selection?.rangeCount || !selection.toString().trim()) return;
-            const range = selection.getRangeAt(0);
-            if (!d.body.contains(range.commonAncestorContainer)) return;
-            const stableRange = range.cloneRange();
-            const textBoundary = (container: Node, offset: number, end: boolean) => {
-              if (container.nodeType === Node.TEXT_NODE) return { node: container, offset };
-              const child = container.childNodes[end ? offset - 1 : offset];
-              if (!child) return null;
-              if (child.nodeType === Node.TEXT_NODE)
-                return { node: child, offset: end ? child.textContent?.length || 0 : 0 };
-              const walker = d.createTreeWalker(child, NodeFilter.SHOW_TEXT);
-              let node = walker.nextNode(),
-                last = node;
-              if (end)
-                while (node) {
-                  last = node;
-                  node = walker.nextNode();
-                }
-              const text = end ? last : node;
-              return text ? { node: text, offset: end ? text.textContent?.length || 0 : 0 } : null;
-            };
-            const start = textBoundary(range.startContainer, range.startOffset, false);
-            const end = textBoundary(range.endContainer, range.endOffset, true);
-            if (start && end) {
-              stableRange.setStart(start.node, start.offset);
-              stableRange.setEnd(end.node, end.offset);
-            }
-            this.callbacks.select({
-              text: selection.toString().trim(),
-              cfi: new EpubCFI(stableRange, item.cfiBase).toString(),
-            });
-          };
           const onScroll = () => {
             const candidates = this.toc.filter(
               (t) => (this.book.spine.get(String(t.target))?.index ?? -1) <= item.index,
@@ -249,13 +192,9 @@ export class EpubController {
             const relative = (this.book as any).path.relative(resolved.pathname) + (resolved.hash || '');
             void this.display(relative).catch((err) => this.callbacks.error(err.message));
           };
-          d.addEventListener('mouseup', onSelect);
-          d.addEventListener('keyup', onSelect);
           d.addEventListener('click', onClick);
           w.addEventListener('scroll', onScroll, { passive: true });
           this.cleanups.push(() => {
-            d.removeEventListener('mouseup', onSelect);
-            d.removeEventListener('keyup', onSelect);
             d.removeEventListener('click', onClick);
             w.removeEventListener('scroll', onScroll);
           });

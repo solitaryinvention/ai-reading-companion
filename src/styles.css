@@ -813,30 +813,6 @@ p {
 .reader-overlay.error {
   color: #9d6d5b;
 }
-.selection-bar {
-  position: absolute;
-  bottom: 65px;
-  left: 50%;
-  transform: translateX(-50%);
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  border: 1px solid #d8e1ce;
-  background: #fffdf6;
-  box-shadow: 0 8px 30px #20381b26;
-  padding: 6px;
-  border-radius: 9px;
-  z-index: 10;
-  white-space: nowrap;
-}
-.selection-bar > span {
-  font-size: 10px;
-  color: #8b967f;
-  margin: 0 5px;
-}
-.selection-bar button {
-  font-size: 11px;
-}
 .reader-empty {
   height: 100%;
   background: #f5f1e7;
@@ -1520,46 +1496,6 @@ p {
 .conversation {
   overflow-anchor: none;
   scroll-behavior: auto;
-}
-.saved-pdf-highlight {
-  position: absolute;
-  z-index: 3;
-  pointer-events: none;
-  border-bottom: 2px solid #c29c32;
-  background: #e6cb642a;
-}
-.highlight-list header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 18px;
-}
-.highlight-list h2 {
-  font-size: 18px;
-  margin: 0;
-}
-.highlight-list article {
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
-  border-top: 1px solid #e3e7de;
-  padding: 12px 0;
-}
-.highlight-location {
-  flex: 1;
-  min-width: 0;
-  flex-direction: column;
-  align-items: flex-start;
-  text-align: left;
-  line-height: 1.8;
-}
-.highlight-location small {
-  color: #8d9785;
-  font-size: 11px;
-}
-.highlight-location span {
-  font-size: 13px;
-  white-space: pre-wrap;
 }
 .conversation {
   scrollbar-width: auto;

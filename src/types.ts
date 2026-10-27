@@ -32,9 +32,6 @@ export interface OcrLine {
   width: number;
   height: number;
 }
-export interface SavedHighlight extends SourceReference {
-  createdAt: string;
-}
 export interface OcrPage {
   bookId: string;
   page: number;
@@ -152,9 +149,6 @@ export interface Bridge {
   thoughts(): Promise<{ entries: Thought[]; path: string }>;
   saveThought(thought: Partial<Thought>): Promise<Thought>;
   removeThought(id: string): Promise<void>;
-  highlights(bookId: string): Promise<SavedHighlight[]>;
-  saveHighlight(reference: SourceReference): Promise<SavedHighlight>;
-  removeHighlight(bookId: string, id: string): Promise<void>;
   createEpub(
     bookId: string,
     pages: { page: number; text: string; label: string; ocr: boolean }[],

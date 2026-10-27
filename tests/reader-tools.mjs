@@ -74,13 +74,12 @@ try {
   await page.mouse.down();
   await page.mouse.move(b.x + b.width - 2, b.y + b.height / 2, { steps: 15 });
   await page.mouse.up();
-  await page.getByRole('button', { name: '引用到聊天', exact: true }).waitFor();
+  assert.equal(await page.locator('.selection-bar').count(), 0);
   await page.keyboard.press('Control+c');
   await page.getByRole('textbox', { name: '聊天输入框' }).click();
   await page.keyboard.press('Control+v');
   assert.ok((await page.getByRole('textbox', { name: '聊天输入框' }).inputValue()).includes('阅读'));
-  await page.getByRole('button', { name: '引用到聊天', exact: true }).click();
-  assert.match(await page.locator('.draft-quote').innerText(), /OCR/);
+  assert.equal(await page.locator('.draft-quote').count(), 0);
   await page.getByRole('checkbox', { name: '附加当前章节' }).check();
   await page.getByRole('button', { name: '预览范围', exact: true }).click();
   await page.locator('.context-preview').waitFor();

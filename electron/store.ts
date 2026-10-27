@@ -103,9 +103,7 @@ export class Store {
   }
   deleteBook(id: string) {
     this.remove('book-progress', id);
-    for (const h of this.list<import('../src/types').SavedHighlight>('highlight').filter(
-      (h) => h.bookId === id,
-    ))
+    for (const h of this.list<{ id: string; bookId: string }>('highlight').filter((h) => h.bookId === id))
       this.remove('highlight', h.id);
     for (const s of this.list<Session>('session').filter((s) => s.bookId === id)) {
       for (const m of this.messages(s.id)) this.remove('message', m.id);

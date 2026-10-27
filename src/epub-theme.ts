@@ -13,7 +13,6 @@ export function epubTheme(s: Settings) {
   return `
 html { background:${bg}!important; color:${ink}!important; scroll-behavior:auto; scrollbar-width:auto; scrollbar-color:${night ? '#535b54' : '#d7d8cf'} transparent; color-scheme:${night ? 'dark' : 'light'}; }
 [data-reader-note] { display:none!important; }
-::highlight(saved-reading) { background-color:#e6cb6450; text-decoration:underline solid #c29c32 2px; text-underline-offset:4px; }
 ::-webkit-scrollbar { width:12px; height:12px; }
 ::-webkit-scrollbar-track { background:transparent; }
 ::-webkit-scrollbar-thumb { background:${night ? '#535b54' : '#c1c7b9'}; border:2px solid ${bg}; border-radius:8px; }

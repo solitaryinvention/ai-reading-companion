@@ -55,14 +55,14 @@ try {
     await page.mouse.up();
     if ((await page.evaluate(() => getSelection()?.toString() || '')).includes('book invites')) break;
   }
-  await page.getByRole('button', { name: '引用到聊天', exact: true }).waitFor();
+  assert.equal(await page.locator('.selection-bar').count(), 0);
+  assert.equal(await page.getByRole('button', { name: '书籍划线', exact: true }).count(), 0);
   await page.keyboard.press('Control+c');
   await page.getByRole('textbox', { name: '聊天输入框' }).click();
   await page.keyboard.press('Control+v');
   const pasted = await page.getByRole('textbox', { name: '聊天输入框' }).inputValue();
   assert.ok(pasted.includes('book invites'), pasted);
-  await page.getByRole('button', { name: '引用到聊天', exact: true }).click();
-  assert.equal(await page.locator('.draft-quote').count(), 1);
+  assert.equal(await page.locator('.draft-quote').count(), 0);
   await page.getByRole('textbox', { name: '聊天输入框' }).fill('请解释这段原文');
   await page.getByRole('checkbox', { name: '附加当前章节' }).check();
   await page.getByRole('button', { name: '预览范围', exact: true }).click();
@@ -71,8 +71,6 @@ try {
   await page.screenshot({ path: 'test-results/pdf.png' });
   await page.getByRole('button', { name: '下一页', exact: true }).click();
   await page.waitForFunction(() => document.querySelector('input[aria-label="跳转页码"]').value === '2');
-  await page.locator('.quote-info').click();
-  await page.locator('.quote-highlight').first().waitFor();
   await page.getByRole('button', { name: '目录', exact: true }).click();
   await page.getByText('此 PDF 没有目录，可在右下方输入页码跳转。').waitFor();
   await page.getByRole('button', { name: '书库', exact: true }).click();
@@ -113,10 +111,13 @@ try {
   await page.mouse.move(b.x + b.width - 5, b.y + b.height / 2, { steps: 20 });
   await page.mouse.up();
   console.log('stage: EPUB drag');
-  await page.getByRole('button', { name: '引用到聊天', exact: true }).waitFor();
-  await page.getByRole('button', { name: '引用到聊天', exact: true }).click();
-  assert.equal(await page.locator('.draft-quote').count(), 1);
-  console.log('stage: EPUB quote');
+  assert.equal(await page.locator('.selection-bar').count(), 0);
+  await page.keyboard.press('Control+c');
+  await page.getByRole('textbox', { name: '聊天输入框' }).click();
+  await page.keyboard.press('Control+v');
+  assert.ok((await page.getByRole('textbox', { name: '聊天输入框' }).inputValue()).includes('我们'));
+  assert.equal(await page.locator('.draft-quote').count(), 0);
+  console.log('stage: EPUB native copy');
   await page.getByRole('textbox', { name: '聊天输入框' }).fill('EPUB 草稿应该保存');
   await page.getByRole('button', { name: '目录', exact: true }).click();
   await page.getByRole('button', { name: '第二章 思考', exact: true }).click();
@@ -138,7 +139,7 @@ try {
       '第2章 阅读的开始',
   );
   assert.equal(await page.getByRole('textbox', { name: '聊天输入框' }).inputValue(), 'EPUB 草稿应该保存');
-  assert.equal(await page.locator('.draft-quote').count(), 1);
+  assert.equal(await page.locator('.draft-quote').count(), 0);
   await page.locator('button[title="连接设置"]').click();
   await page.getByRole('dialog', { name: '连接与设置' }).waitFor();
   assert.equal(await page.evaluate(() => 'accessToken' in window.reader || 'key' in window.reader), false);

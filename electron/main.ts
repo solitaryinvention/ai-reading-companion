@@ -79,52 +79,6 @@ app.whenReady().then(async () => {
     thoughts: () => memory.archive(),
     saveThought: (input: Partial<import('../src/types').Thought>) => memory.saveThought(input),
     removeThought: (id: string) => memory.removeThought(id),
-    highlights: (bookId: string) => {
-      store.book(bookId);
-      return store
-        .list<import('../src/types').SavedHighlight>('highlight')
-        .filter((h) => h.bookId === bookId);
-    },
-    saveHighlight: (reference: import('../src/types').SourceReference) => {
-      const book = store.book(reference.bookId);
-      if (!reference.text?.trim() || reference.text.length > 100000) throw new Error('请选择原文后划线');
-      if (
-        book.format === 'epub'
-          ? !reference.cfi?.startsWith('epubcfi(')
-          : !Number.isInteger(reference.page) || !reference.rects?.length
-      )
-        throw new Error('无法保存选文位置');
-      if (
-        reference.rects?.some(
-          (r) => ![r.x, r.y, r.width, r.height].every(Number.isFinite) || r.width <= 0 || r.height <= 0,
-        )
-      )
-        throw new Error('选区无效');
-      const all = store.list<import('../src/types').SavedHighlight>('highlight');
-      const duplicate = all.find(
-        (h) =>
-          h.bookId === book.id &&
-          h.text === reference.text &&
-          h.cfi === reference.cfi &&
-          h.page === reference.page &&
-          JSON.stringify(h.rects) === JSON.stringify(reference.rects),
-      );
-      if (duplicate) return duplicate;
-      const saved = {
-        ...reference,
-        id: randomUUID(),
-        title: book.title,
-        createdAt: new Date().toISOString(),
-      };
-      store.put('highlight', saved.id, saved);
-      return saved;
-    },
-    removeHighlight: (bookId: string, id: string) => {
-      store.book(bookId);
-      if (store.get<import('../src/types').SavedHighlight>('highlight', id)?.bookId !== bookId)
-        throw new Error('划线不属于当前书籍');
-      store.remove('highlight', id);
-    },
     createEpub: async (bookId: string, pages: ConvertedPage[]) => {
       const source = store.book(bookId);
       if (source.format !== 'pdf') throw new Error('仅支持 PDF 转 EPUB');
