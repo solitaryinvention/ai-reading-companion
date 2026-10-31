@@ -29,6 +29,7 @@ import { Reader, type ReaderHandle } from './Reader';
 import { AgentEditor, ThoughtArchive } from './KnowledgePanels';
 import { DetailControl } from './DetailControl';
 import { chatFonts, chatFontFamily } from './chat-fonts';
+import { isNextSegment } from './continue-reading';
 import { ConversationScroll } from './ConversationScroll';
 import { normalizeDetail } from './detail-level';
 import type {
@@ -272,15 +273,29 @@ export function App() {
       setPreparing(false);
     }
   };
-  const send = async (retryId?: string) => {
+  const send = async (retryId?: string, next = false) => {
     if (!session || !book || session.bookId !== book.id || busy || preparingSend.current) return;
     if (!data?.settings.model) {
       setSettingsOpen(true);
       notify('请先连接账户并选择模型');
       return;
     }
-    if (!retryId && !draft.text.trim() && !draft.refs.length) return;
+    if (!retryId && !next && !draft.text.trim() && !draft.refs.length) return;
     const submittedDraft = structuredClone(draft);
+    if (next) submittedDraft.text = '下一节';
+    if (!retryId && (next || isNextSegment(submittedDraft.text)) && !submittedDraft.refs.length) {
+      preparingSend.current = true;
+      setPreparing(true);
+      try {
+        const last = [...messages].reverse().find(message => message.role === 'user' && (message.refs.length || !isNextSegment(message.text)));
+        const previous = last?.refs.find(ref => ref.segment) || last?.refs.at(-1);
+        const source = await reader.current!.nextSegment(previous, last?.text || '');
+        if (sidRef.current !== session.id || activeRef.current !== book.id) return;
+        submittedDraft.refs = [source];
+        submittedDraft.text = '请直接概述这一节的内容，按内容采用适合的叙事或理论讲法。';
+      } catch (error) { notify(errorText(error)); return; }
+      finally { preparingSend.current = false; setPreparing(false); }
+    }
     const detailLevel = normalizeDetail(book.detailLevel);
     submittedDraft.attach = false;
     const req = { id: crypto.randomUUID(), sid: session.id, draft: submittedDraft };
@@ -676,6 +691,10 @@ export function App() {
                 }}
               />
               <div className="composer-bottom">
+                {book?.format === 'epub' && data.settings.smartSegments && <button
+                  disabled={busy || preparing || !session || !!draft.text.trim() || !!draft.refs.length}
+                  title="自动附带下一分段原文并概述；没有历史原文时从当前章节第一段开始"
+                  onClick={() => void send(undefined, true)}>{preparing ? '准备原文…' : '概述下一节'}</button>}
                 <DetailControl
                   key={book?.id || 'empty'}
                   value={book?.detailLevel}

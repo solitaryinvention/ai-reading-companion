@@ -22,6 +22,7 @@ import { cleanPdfText } from './reader-utils';
 import { countCharacters } from './chapter-count';
 pdfjs.GlobalWorkerOptions.workerSrc = workerUrl;
 export interface ReaderHandle {
+  nextSegment(previous?: SourceReference, previousText?: string): Promise<SourceReference>;
   jump(target: string | number | SourceReference): Promise<void>;
   chapter(from?: number, to?: number): Promise<SourceReference>;
 }
@@ -498,6 +499,10 @@ export const Reader = forwardRef<ReaderHandle, Props>(function Reader(
     } else if (epub.current) await epub.current.jump(target);
   };
   useImperativeHandle(ref, () => ({
+    nextSegment: async (previous, text) => {
+      if (!epub.current) throw new Error('下一节自动概述仅支持 EPUB 智能分段');
+      return epub.current.nextSegment(previous, text);
+    },
     jump,
     chapter: async (from, to) => {
       if (pdf.current) {

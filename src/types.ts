@@ -15,6 +15,7 @@ export interface ReaderPosition {
   cfi?: string;
 }
 export interface SourceReference {
+  segment?: { href: string; index: number };
   id: string;
   bookId: string;
   title: string;

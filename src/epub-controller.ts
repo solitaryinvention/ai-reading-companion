@@ -7,6 +7,7 @@ import { embedBookImages, hideBookNotes } from './epub-assets';
 import { countChapterRange } from './chapter-count';
 import { installSelectionCopy, readerBodyText } from './selection-copy';
 import { chapterBlocks, showSegments } from './epub-segments';
+import { matchingSegment, compactText } from './continue-reading';
 
 /** epub.js parses the archive and CFIs; a script-free iframe owns native scrolling. */
 export class EpubController {
@@ -22,6 +23,47 @@ export class EpubController {
   private segmentsEnabled = false;
   private segmentCleanup?: () => void;
   private segmentRequest = 0;
+  async nextSegment(previous?: SourceReference, previousText = ''): Promise<SourceReference> {
+    if (!this.settings.smartSegments) throw new Error('请先在设置开启 EPUB 自动智能分段');
+    if (previous?.bookId && previous.bookId !== this.meta.id) throw new Error('不能读取其他书籍的下一段');
+    if (previous?.segment && previous.segment.href !== this.section?.href) await this.display(previous.segment.href);
+    const read = async () => {
+      const doc = this.frame.contentDocument;
+      if (!doc || !this.section) throw new Error('章节尚未就绪');
+      const epoch = this.epoch;
+      const blocks = chapterBlocks(doc);
+      if (!blocks.length || compactText(blocks.map(el => el.innerText).join('')) !== compactText(readerBodyText(doc))) throw new Error('当前章节无法完整分段，请手动复制');
+      const ends = await window.reader.segmentChapter(this.meta.id, blocks.map(el => el.innerText));
+      if (this.disposed || epoch !== this.epoch) throw new Error('阅读位置已改变，请重新点击下一节');
+      let start = 0;
+      const texts = ends.map(end => { const text = blocks.slice(start, end).map(el => el.innerText).join('\n\n'); start = end; return text; });
+      return { doc, blocks, ends, texts };
+    };
+    let result = await read();
+    let index = 0;
+    if (previous?.segment) {
+      const old = previous.segment.index;
+      if (compactText(result.texts[old] || '') !== compactText(previous.text)) throw new Error('原文分段已变化，请复制当前段重新开始');
+      index = old + 1;
+    } else if (previous?.text || previousText.trim()) {
+      const matched = matchingSegment(result.texts, previous?.text || previousText);
+      if (matched < 0) throw new Error('无法在当前章节确定上次讲解的分段，请先复制完整分段发送；不会猜测下一段');
+      index = matched + 1;
+    }
+    if (index >= result.texts.length) {
+      const next = this.section.next();
+      if (!next) throw new Error('已到全书最后一段');
+      await this.display(next.href);
+      result = await read(); index = 0;
+    }
+    const start = index ? result.ends[index - 1] : 0;
+    const range = result.doc.createRange(); range.selectNodeContents(result.blocks[start]);
+    const source: SourceReference = { id: crypto.randomUUID(), bookId: this.meta.id, title: this.meta.title,
+      label: `${this.title} · 第 ${index + 1}/${result.texts.length} 段`, text: result.texts[index],
+      cfi: new EpubCFI(range, this.section.cfiBase).toString(), segment: { href: this.section.href, index } };
+    result.blocks[start].scrollIntoView({ block: 'start' });
+    return source;
+  }
   async toggleSegments(enabled: boolean) {
     this.segmentsEnabled = enabled;
     this.segmentRequest++;
