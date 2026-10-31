@@ -145,6 +145,12 @@ try {
   const body = await app.evaluate(() => JSON.stringify(globalThis.__knowledgeRequests[0]));
   assert.ok(body.includes('A_AGENT_PRIVATE'));
   assert.ok(body.includes('让没有读过原文的人，也能独立读懂这次讲解'));
+  assert.ok(body.includes('不先总结全文'));
+  assert.ok(body.includes('在这段叙述中'));
+  assert.ok(body.includes('题辞的首字母组成 RICERCAR'));
+  assert.ok(body.includes('叙事内容：把事情讲下来'));
+  assert.ok(body.includes('理论内容：让问题、例子与概念逐步相连'));
+  assert.ok(body.includes('混合内容：在需要处自然切换'));
   assert.ok(body.includes('用户这一次明确提出的任务、提问角度和篇幅要求优先'));
   assert.ok(!body.includes('B_AGENT_PRIVATE'));
   assert.ok(

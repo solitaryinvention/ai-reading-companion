@@ -61,17 +61,33 @@ try {
   await page.reload();
   await page.getByRole('textbox', { name: '聊天输入框' }).fill('验证生成时保持当前滚动位置');
   await page.locator('.pdf-sheet[data-ready="true"]').first().waitFor();
-  await page.getByRole('checkbox', { name: '附加当前章节', exact: true }).check();
+  assert.equal(await page.getByRole('checkbox', { name: '附加当前章节', exact: true }).count(), 0);
+  assert.equal(await page.getByText('Enter 发送 · Shift + Enter 换行', { exact: true }).count(), 0);
   await page.getByRole('button', { name: '发送问题', exact: true }).click();
   await page.waitForFunction(
     () => document.querySelector('.message.assistant .markdown')?.textContent.length > 1000,
   );
-  assert.ok(await app.evaluate(() => JSON.stringify(globalThis.__readerScrollBody).includes('Chapter 1')));
+  assert.equal(await page.getByRole('textbox', { name: '聊天输入框' }).inputValue(), '');
+  const assistantText = page.locator('.message.assistant .markdown p').first();
+  await assistantText.evaluate(el => {
+    const range = document.createRange(); range.selectNodeContents(el);
+    const selection = document.getSelection(); selection.removeAllRanges(); selection.addRange(range);
+    el.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 200, clientY: 200 }));
+  });
+  await page.getByRole('button', { name: '复制选中文字', exact: true }).click();
+  assert.equal(await app.evaluate(({ clipboard }) => clipboard.readText()), await assistantText.innerText());
+  await page.getByRole('textbox', { name: '聊天输入框' }).fill('正在写下一个问题');
   assert.equal(await page.getByText('请核对范围预览，再点击发送', { exact: true }).count(), 0);
   assert.equal(
-    await page.locator('.conversation').evaluate((el) => getComputedStyle(el, '::-webkit-scrollbar').width),
+    await page
+      .getByRole('scrollbar', { name: '聊天历史滚动条' })
+      .evaluate((el) => getComputedStyle(el).width),
     '16px',
   );
+  const thumbHeight = await page
+    .locator('.conversation-scroll-thumb')
+    .evaluate((el) => el.getBoundingClientRect().height);
+  assert.equal(thumbHeight, 96);
   const before = await page.locator('.conversation').evaluate((el) => {
     el.scrollTop = el.scrollHeight - el.clientHeight - 100;
     return { top: el.scrollTop, length: el.textContent.length };
@@ -83,6 +99,10 @@ try {
   );
   const after = await page.locator('.conversation').evaluate((el) => el.scrollTop);
   assert.ok(Math.abs(after - before.top) < 2, `scroll changed ${before.top} -> ${after}`);
+  assert.equal(
+    await page.locator('.conversation-scroll-thumb').evaluate((el) => el.getBoundingClientRect().height),
+    thumbHeight,
+  );
   const length = await page.locator('.conversation').evaluate((el) => {
     el.scrollTop = 0;
     return el.textContent.length;
@@ -93,10 +113,37 @@ try {
     length,
   );
   assert.equal(await page.locator('.conversation').evaluate((el) => el.scrollTop), 0);
+  const bar = page.getByRole('scrollbar', { name: '聊天历史滚动条' });
+  await bar.focus();
+  await page.keyboard.press('End');
+  assert.ok(
+    await page
+      .locator('.conversation')
+      .evaluate((el) => Math.abs(el.scrollHeight - el.clientHeight - el.scrollTop) < 2),
+  );
+  await page.keyboard.press('Home');
+  assert.equal(await page.locator('.conversation').evaluate((el) => el.scrollTop), 0);
+  const thumbBox = await page.locator('.conversation-scroll-thumb').boundingBox();
+  const barBox = await bar.boundingBox();
+  await page.mouse.move(thumbBox.x + thumbBox.width / 2, thumbBox.y + thumbBox.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(thumbBox.x + thumbBox.width / 2, barBox.y + barBox.height - 1, { steps: 8 });
+  await page.mouse.up();
+  assert.ok(
+    await page
+      .locator('.conversation')
+      .evaluate((el) => Math.abs(el.scrollHeight - el.clientHeight - el.scrollTop) < 2),
+  );
+  assert.equal(
+    await page.locator('.conversation-scroll-thumb').evaluate((el) => el.getBoundingClientRect().height),
+    thumbHeight,
+  );
   await app.evaluate(() => globalThis.__readerScrollFinish());
   await page.waitForFunction(() => !document.querySelector('.message-status.streaming'));
+  assert.equal(await page.getByRole('textbox', { name: '聊天输入框' }).inputValue(), '正在写下一个问题');
+  await page.screenshot({ path: path.join(dir, 'fixed-chat-scroll.png') });
   console.log(
-    'PASS: streaming keeps the exact scroll position near the bottom and after manually scrolling up.',
+    'PASS: streaming preserves scroll position; 96px thumb stays fixed as content grows; keyboard and dragging reach history boundaries.',
   );
 } catch (error) {
   console.log(await page.locator('.conversation').innerText());

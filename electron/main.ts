@@ -1,4 +1,4 @@
-import { app, BrowserWindow, dialog, ipcMain, session, shell, clipboard, nativeTheme } from 'electron';
+import { app, BrowserWindow, dialog, ipcMain, session, shell, clipboard, nativeTheme, Menu } from 'electron';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import path from 'node:path';
 import { mkdirSync, readFileSync, writeFileSync, unlinkSync, existsSync } from 'node:fs';
@@ -6,6 +6,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import { Store } from './store';
 import { Connection } from './auth';
 import { Chat } from './chat';
+import { segmentChapter } from './segments';
 import { BookMemory } from './book-memory';
 import { normalizeDetail } from '../src/detail-level';
 import { OcrService } from './ocr';
@@ -49,6 +50,16 @@ app.whenReady().then(async () => {
     },
   });
   win.setMenuBarVisibility(false);
+  win.webContents.on('context-menu', (_event, params) => {
+    if (!params.isEditable) return;
+    Menu.buildFromTemplate([
+      { label: '剪切', enabled: params.editFlags.canCut, click: () => win.webContents.cut() },
+      { label: '复制', enabled: params.editFlags.canCopy, click: () => win.webContents.copy() },
+      { label: '粘贴', enabled: params.editFlags.canPaste, click: () => win.webContents.paste() },
+      { type: 'separator' },
+      { label: '全选', click: () => win.webContents.selectAll() },
+    ]).popup({ window: win });
+  });
   win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
   win.webContents.on('will-navigate', (event) => event.preventDefault());
   session.defaultSession.setPermissionRequestHandler((_wc, _permission, callback) => callback(false));
@@ -73,6 +84,7 @@ app.whenReady().then(async () => {
     return path.join(dir, 'books', b.id + '.' + b.format);
   };
   const handlers: Record<string, (...args: any[]) => any> = {
+    segmentChapter: (id: string, paragraphs: string[]) => segmentChapter(store, connection, id, paragraphs),
     bookAgent: (id: string) => memory.profile(id),
     saveBookAgent: (id: string, text: string) => memory.saveAgent(id, text),
     saveBookProgress: (id: string, text: string) => memory.saveProgress(id, text),

@@ -61,6 +61,14 @@ describe('chat lifecycle', () => {
           const body = payloads[level - 1];
           const instructions = mode === 'api' ? body.messages[0].content : body.instructions;
           expect(instructions).toContain(TEACHING_INSTRUCTIONS);
+          expect(instructions).toContain('不先总结全文');
+          expect(instructions).toContain('在这段叙述中');
+          expect(instructions).toContain('题辞的首字母组成 RICERCAR');
+          expect(instructions).toContain('叙事内容：把事情讲下来');
+          expect(instructions).toContain('理论内容：让问题、例子与概念逐步相连');
+          expect(instructions).toContain('混合内容：在需要处自然切换');
+          expect(instructions).toContain('概念可以随例子自然展开');
+          expect(instructions).not.toContain('每一档都先讲清实际内容');
           expect(instructions).toContain(original);
           expect(instructions).toContain(`${level}/5`);
           expect(instructions).toContain('不是正文');

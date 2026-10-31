@@ -3,6 +3,7 @@ import * as pdfjs from 'pdfjs-dist';
 import workerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 import 'pdfjs-dist/web/pdf_viewer.css';
 import { EpubController } from './epub-controller';
+import { installSelectionCopy } from './selection-copy';
 import JSZip from 'jszip';
 import {
   ChevronLeft,
@@ -262,6 +263,7 @@ export const Reader = forwardRef<ReaderHandle, Props>(function Reader(
     }
   };
   const epub = useRef<EpubController | null>(null);
+  useEffect(() => installSelectionCopy(document), []);
   const current = useRef({
     page: book.position?.page || 1,
     cfi: book.position?.cfi || '',
@@ -656,7 +658,7 @@ export const Reader = forwardRef<ReaderHandle, Props>(function Reader(
   }, [ready, total]);
   useEffect(() => {
     epub.current?.apply(settings);
-  }, [settings.fontSize, settings.lineHeight, settings.theme, settings.readingFont]);
+  }, [settings.fontSize, settings.lineHeight, settings.theme, settings.readingFont, settings.smartSegments]);
   const pdfTextCounts = useRef(new Map<number, number>());
   useEffect(() => {
     const doc = pdf.current;

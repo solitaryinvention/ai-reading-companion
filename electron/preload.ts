@@ -2,6 +2,7 @@ import { contextBridge, ipcRenderer } from 'electron';
 import type { Bridge, ChatEvent } from '../src/types';
 const invoke = (method: string, ...args: unknown[]) => ipcRenderer.invoke('reader:' + method, ...args);
 const api: Bridge = {
+  segmentChapter: (id, paragraphs) => invoke('segmentChapter', id, paragraphs),
   bookAgent: (id) => invoke('bookAgent', id),
   saveBookAgent: (id, text) => invoke('saveBookAgent', id, text),
   saveBookProgress: (id, text) => invoke('saveBookProgress', id, text),

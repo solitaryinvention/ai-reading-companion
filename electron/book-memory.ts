@@ -12,6 +12,9 @@ import { createHash, randomUUID } from 'node:crypto';
 import type { BookAgent, Thought, Message, Book } from '../src/types';
 import type { Store } from './store';
 import { DEFAULT_AGENT } from './default-agent';
+import { LEGACY_DEFAULT_AGENT } from './legacy-default-agent';
+import { PREVIOUS_DEFAULT_AGENT } from './previous-default-agent';
+import { DEFAULT_AGENT_055 } from './default-agent-055';
 
 const bounded = (value: unknown, max = 4000) => (typeof value === 'string' ? value.trim().slice(0, max) : '');
 export const MEMORY_TAG = '<reader_memory>';
@@ -40,6 +43,14 @@ export class BookMemory {
   profile(bookId: string): BookAgent {
     const file = this.file(bookId, 'agent.md');
     if (!existsSync(file)) this.write(file, DEFAULT_AGENT);
+    const normalize = (text: string) => text.replace(/^\uFEFF/, '').replace(/\r\n/g, '\n');
+    // Migrate only the exact known template, never a user's edited profile.
+    if (
+      [LEGACY_DEFAULT_AGENT, PREVIOUS_DEFAULT_AGENT, DEFAULT_AGENT_055].some(
+        (template) => normalize(readFileSync(file, 'utf8')) === normalize(template),
+      )
+    )
+      this.write(file, DEFAULT_AGENT);
     return {
       text: readFileSync(file, 'utf8'),
       defaultText: DEFAULT_AGENT,

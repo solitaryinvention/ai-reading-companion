@@ -5,6 +5,8 @@ import { epubTheme } from './epub-theme';
 import JSZip from 'jszip';
 import { embedBookImages, hideBookNotes } from './epub-assets';
 import { countChapterRange } from './chapter-count';
+import { installSelectionCopy, readerBodyText } from './selection-copy';
+import { chapterBlocks, showSegments } from './epub-segments';
 
 /** epub.js parses the archive and CFIs; a script-free iframe owns native scrolling. */
 export class EpubController {
@@ -17,6 +19,26 @@ export class EpubController {
   private settings: Settings;
   private title = '当前章节';
   private cleanups: (() => void)[] = [];
+  private segmentsEnabled = false;
+  private segmentCleanup?: () => void;
+  private segmentRequest = 0;
+  async toggleSegments(enabled: boolean) {
+    this.segmentsEnabled = enabled;
+    this.segmentRequest++;
+    this.segmentCleanup?.();
+    this.segmentCleanup = undefined;
+    if (!enabled) return;
+    const doc = this.frame.contentDocument;
+    if (!doc || !this.section) throw new Error('当前章节尚未就绪');
+    const request = this.segmentRequest;
+    const blocks = chapterBlocks(doc);
+    if (!blocks.length) throw new Error('当前章节没有可分段的文字');
+    if (blocks.map(el => el.innerText).join('').replace(/\s/gu, '') !== readerBodyText(doc).replace(/\s/gu, ''))
+      throw new Error('当前章节含特殊文本布局，无法保证完整分段，请手动选文');
+    const ends = await window.reader.segmentChapter(this.meta.id, blocks.map(el => el.innerText));
+    if (this.disposed || !this.segmentsEnabled || request !== this.segmentRequest || doc !== this.frame.contentDocument) return;
+    this.segmentCleanup = showSegments(doc, blocks, ends);
+  }
   constructor(
     private host: HTMLElement,
     private meta: Book,
@@ -36,6 +58,7 @@ export class EpubController {
   ) {
     // Allow trusted parent event listeners. Book scripts remain removed and blocked by script-src 'none'.
     this.settings = settings;
+    this.segmentsEnabled = !!settings.smartSegments;
     this.frame = document.createElement('iframe');
     this.frame.title = 'EPUB 书籍正文';
     this.frame.setAttribute('sandbox', 'allow-same-origin allow-scripts');
@@ -119,6 +142,8 @@ export class EpubController {
   async display(target?: string, offset?: number, highlight = false) {
     if (this.disposed) return;
     const epoch = ++this.epoch;
+    this.segmentRequest++;
+    this.segmentCleanup?.();
     const item = this.book.spine.get(target);
     if (!item) throw new Error('无法定位此章节');
     const output = await item.render(this.book.load.bind(this.book));
@@ -193,6 +218,7 @@ export class EpubController {
             void this.display(relative).catch((err) => this.callbacks.error(err.message));
           };
           d.addEventListener('click', onClick);
+          this.cleanups.push(installSelectionCopy(d));
           w.addEventListener('scroll', onScroll, { passive: true });
           this.cleanups.push(() => {
             d.removeEventListener('click', onClick);
@@ -209,6 +235,7 @@ export class EpubController {
             d.getElementById(decodeURIComponent(target.split('#')[1]))?.scrollIntoView();
           if (offset !== undefined) w.scrollTo(0, offset);
           onScroll();
+          if (this.segmentsEnabled) void this.toggleSegments(true).catch(error => this.callbacks.error(error.message));
           resolve();
         } catch (error) {
           reject(error);
@@ -221,7 +248,9 @@ export class EpubController {
     return epubTheme(this.settings);
   }
   apply(settings: Settings) {
+    const changed = !!settings.smartSegments !== this.segmentsEnabled;
     this.settings = settings;
+    if (changed) void this.toggleSegments(!!settings.smartSegments).catch(error => this.callbacks.error(error.message));
     const el = this.frame.contentDocument?.getElementById('reader-theme');
     if (el) el.textContent = this.css();
   }
@@ -287,12 +316,14 @@ export class EpubController {
       bookId: this.meta.id,
       title: this.meta.title,
       label: this.title,
-      text: doc.body.innerText.trim(),
+      text: readerBodyText(doc).trim(),
       cfi: new EpubCFI(doc.body, this.section.cfiBase).toString(),
     };
   }
   destroy() {
     this.disposed = true;
+    this.segmentRequest++;
+    this.segmentCleanup?.();
     this.epoch++;
     this.cleanups.forEach((fn) => fn());
     this.frame.onload = null;

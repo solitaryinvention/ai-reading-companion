@@ -28,6 +28,8 @@ import {
 import { Reader, type ReaderHandle } from './Reader';
 import { AgentEditor, ThoughtArchive } from './KnowledgePanels';
 import { DetailControl } from './DetailControl';
+import { chatFonts, chatFontFamily } from './chat-fonts';
+import { ConversationScroll } from './ConversationScroll';
 import { normalizeDetail } from './detail-level';
 import type {
   Snapshot,
@@ -193,15 +195,10 @@ export function App() {
       if (event.type !== 'delta') {
         setBusy(false);
         request.current = null;
-        if (
-          event.type === 'complete' &&
-          sidRef.current === req.sid &&
-          JSON.stringify(draftRef.current) === JSON.stringify(req.draft)
-        ) {
-          setDraft(blank());
-          draftRef.current = blank();
-          void window.reader.saveDraft(req.sid, blank());
-          setPreview(null);
+        if (event.type === 'failed' && sidRef.current === req.sid && !draftRef.current.text && !draftRef.current.refs.length) {
+          setDraft(req.draft);
+          draftRef.current = req.draft;
+          void window.reader.saveDraft(req.sid, req.draft);
         }
         if (event.error) notify(event.error);
         if (event.notice) notify(event.notice);
@@ -285,24 +282,10 @@ export function App() {
     if (!retryId && !draft.text.trim() && !draft.refs.length) return;
     const submittedDraft = structuredClone(draft);
     const detailLevel = normalizeDetail(book.detailLevel);
-    let chapter: SourceReference | undefined;
-    if (!retryId && submittedDraft.attach) {
-      preparingSend.current = true;
-      setPreparing(true);
-      try {
-        chapter = await reader.current!.chapter(submittedDraft.from, submittedDraft.to);
-      } catch (e) {
-        notify(errorText(e));
-        return;
-      } finally {
-        preparingSend.current = false;
-        setPreparing(false);
-      }
-      if (sidRef.current !== session.id || activeRef.current !== book.id || chapter.bookId !== book.id)
-        return;
-    }
+    submittedDraft.attach = false;
     const req = { id: crypto.randomUUID(), sid: session.id, draft: submittedDraft };
     request.current = req;
+    if (!retryId) editDraft(blank());
     setBusy(true);
     try {
       await window.reader.send({
@@ -311,7 +294,6 @@ export function App() {
         model: data.settings.model,
         text: submittedDraft.text,
         refs: submittedDraft.refs,
-        chapter,
         detailLevel,
         retryId,
         reading: { label: info.label, page: info.page, total: info.total, toc: toc.map((t) => t.label) },
@@ -325,6 +307,7 @@ export function App() {
           }),
         );
     } catch (e) {
+      if (!retryId && sidRef.current === session.id && !draftRef.current.text && !draftRef.current.refs.length) editDraft(submittedDraft);
       setBusy(false);
       request.current = null;
       notify(errorText(e));
@@ -554,7 +537,7 @@ export function App() {
         </>
       )}
       <main className="workspace">
-        <section className="chat-panel" style={{ flexBasis: `${data.settings.chatRatio * 100}%` }}>
+        <section className="chat-panel" style={{ flexBasis: `${data.settings.chatRatio * 100}%`, fontFamily: chatFontFamily(data.settings.chatFont) }}>
           <header className="chat-header">
             <div className="chat-title">
               {data.settings.collapsed && (
@@ -574,7 +557,7 @@ export function App() {
               {models.find((m) => m.id === data.settings.model)?.name || '连接模型'}
             </button>
           </header>
-          <div className="conversation" ref={chatScroll}>
+          <ConversationScroll viewportRef={chatScroll}>
             {messages.map((m, index) => (
               <article key={m.id} className={'message ' + m.role}>
                 <div className="message-heading">
@@ -654,7 +637,7 @@ export function App() {
                 )}
               </article>
             ))}
-          </div>
+          </ConversationScroll>
           <div className="composer-area">
             {draft.refs.length > 0 && (
               <div className="draft-quotes">
@@ -675,60 +658,6 @@ export function App() {
                     </button>
                   </div>
                 ))}
-              </div>
-            )}
-            <div className="context-controls">
-              <label>
-                <input
-                  type="checkbox"
-                  disabled={!book}
-                  checked={draft.attach}
-                  onChange={(e) =>
-                    editDraft({
-                      ...draft,
-                      attach: e.target.checked,
-                      ...(e.target.checked && book?.format === 'pdf' && !draft.from
-                        ? { from: info.from ?? info.page, to: info.to ?? info.page }
-                        : {}),
-                    })
-                  }
-                />
-                附加当前章节
-              </label>
-              {draft.attach && book?.format === 'pdf' && (
-                <div className="range-controls">
-                  <input
-                    aria-label="起始页"
-                    type="number"
-                    min="1"
-                    max={info.total}
-                    value={draft.from ?? info.page}
-                    onChange={(e) => editDraft({ ...draft, from: Number(e.target.value) })}
-                  />
-                  <span>至</span>
-                  <input
-                    aria-label="结束页"
-                    type="number"
-                    min="1"
-                    max={info.total}
-                    value={draft.to ?? info.page}
-                    onChange={(e) => editDraft({ ...draft, to: Number(e.target.value) })}
-                  />
-                  <span>页</span>
-                </div>
-              )}
-              {draft.attach && (
-                <button disabled={preparing} onClick={() => void prepare()}>
-                  {preparing ? '提取中…' : '预览范围'}
-                </button>
-              )}
-            </div>
-            {draft.attach && preview && (
-              <div className="context-preview">
-                <Check size={13} />
-                <span>
-                  {preview.label} · {preview.text.length.toLocaleString()} 字符，将随问题发送
-                </span>
               </div>
             )}
             <div className="composer">
@@ -769,9 +698,6 @@ export function App() {
                     });
                   }}
                 />
-                <span>
-                  {draft.refs.length ? `${draft.refs.length} 处原文引用` : 'Enter 发送 · Shift + Enter 换行'}
-                </span>
                 {busy ? (
                   <button
                     className="send-button stop"
@@ -837,6 +763,10 @@ export function App() {
       {settingsOpen && (
         <ConnectionDialog
           theme={data.settings.theme}
+          chatFont={data.settings.chatFont || 'system'}
+          onChatFont={(chatFont) => updateSettings({ chatFont })}
+          smartSegments={!!data.settings.smartSegments}
+          onSmartSegments={(smartSegments) => updateSettings({ smartSegments })}
           onTheme={(theme) => updateSettings({ theme })}
           status={data.connection}
           models={models}
@@ -925,6 +855,10 @@ export function App() {
 }
 
 function ConnectionDialog({
+  chatFont,
+  onChatFont,
+  smartSegments,
+  onSmartSegments,
   theme,
   onTheme,
   status,
@@ -936,6 +870,10 @@ function ConnectionDialog({
   onRefresh,
   notify,
 }: {
+  chatFont: string;
+  onChatFont: (font: string) => void;
+  smartSegments: boolean;
+  onSmartSegments: (enabled: boolean) => void;
   theme: Settings['theme'];
   onTheme: (theme: Settings['theme']) => void;
   status: ConnectionStatus;
@@ -996,8 +934,18 @@ function ConnectionDialog({
           </select>
         </div>
         <p className="muted">
-          书籍保存在本地；只有发送问题时，所选原文与会话上下文才会传给你选择的 OpenAI 或 DeepSeek。
+          书籍保存在本地；发送问题或启用智能分段时，相关文字会传给你选择的模型。
         </p>
+        <div className="setting-row">
+          <label htmlFor="chat-font">聊天栏字体</label>
+          <select id="chat-font" value={chatFont} onChange={event => onChatFont(event.target.value)}>
+            {chatFonts.map(font => <option key={font.id} value={font.id}>{font.name}</option>)}
+          </select>
+        </div>
+        <p style={{ fontFamily: chatFontFamily(chatFont), fontSize: 16, lineHeight: 1.8 }}>阅读让我们停下脚步，认真思考每一个问题。ABC 123</p>
+        <p className="muted">只改变中间聊天栏；字体未安装时使用系统替代字体。</p>
+        <label><input type="checkbox" checked={smartSegments} onChange={event => onSmartSegments(event.target.checked)} /> EPUB 自动智能分段</label>
+        <p className="muted">开启后进入每个章节自动分析，使用当前模型额度；已有结果直接读取本地缓存。PDF 不参与分段。</p>
         <div className="mode-tabs">
           <button className={mode === 'chatgpt' ? 'active' : ''} onClick={() => setMode('chatgpt')}>
             ChatGPT 套餐

@@ -1,5 +1,9 @@
 import { describe, it, expect, vi } from 'vitest';
-import { mkdtempSync, rmSync, readFileSync } from 'node:fs';
+import { mkdtempSync, rmSync, readFileSync, writeFileSync } from 'node:fs';
+import { DEFAULT_AGENT } from '../electron/default-agent';
+import { LEGACY_DEFAULT_AGENT } from '../electron/legacy-default-agent';
+import { PREVIOUS_DEFAULT_AGENT } from '../electron/previous-default-agent';
+import { DEFAULT_AGENT_055 } from '../electron/default-agent-055';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { Store } from '../electron/store';
@@ -15,6 +19,28 @@ async function setup() {
   return { dir, store, memory: new BookMemory(store) };
 }
 describe('book agents and independent thought archive', () => {
+  it('upgrades only untouched legacy defaults and preserves custom profiles and progress', async () => {
+    const { dir, memory } = await setup();
+    try {
+      const file = memory.profile('a').path;
+      memory.saveProgress('a', '第一章仍有疑问');
+      writeFileSync(file, '\uFEFF' + LEGACY_DEFAULT_AGENT.replace(/\r?\n/g, '\r\n'));
+      expect(memory.profile('a').text).toBe(DEFAULT_AGENT);
+      writeFileSync(file, PREVIOUS_DEFAULT_AGENT);
+      expect(memory.profile('a').text).toBe(DEFAULT_AGENT);
+      writeFileSync(file, DEFAULT_AGENT_055);
+      expect(memory.profile('a').text).toBe(DEFAULT_AGENT);
+      expect(readFileSync(file, 'utf8')).toBe(DEFAULT_AGENT);
+      expect(memory.profile('a').progress).toBe('第一章仍有疑问');
+      expect(memory.profile('a').text).toBe(DEFAULT_AGENT);
+      const custom = LEGACY_DEFAULT_AGENT + '\n个人偏好：多举例。';
+      memory.saveAgent('b', custom);
+      expect(memory.profile('b').text).toBe(custom);
+      expect(DEFAULT_AGENT).toContain('不要把所有书都讲成理论课');
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
   it('isolates editable agents and progress; preserves shared archive after removing a book', async () => {
     const { dir, store, memory } = await setup();
     try {

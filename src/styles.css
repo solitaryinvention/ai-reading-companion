@@ -1517,6 +1517,57 @@ p {
 .conversation::-webkit-scrollbar-thumb:hover {
   background: #81917c;
 }
+.conversation-shell {
+  position: relative;
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  padding-right: 16px;
+}
+.conversation-shell .conversation {
+  min-width: 0;
+  scrollbar-width: none;
+  scrollbar-gutter: auto;
+  scroll-behavior: auto;
+}
+.conversation-shell .conversation::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
+.conversation-content { display: flow-root; }
+.draft-word-count {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  padding: 10px 14px 0;
+  color: var(--muted, #74816f);
+  font-size: 11px;
+  line-height: 1.6;
+}
+.conversation-scrollbar {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 16px;
+  background: var(--scroll-track, #f0f2ed);
+  border-radius: 8px;
+  touch-action: none;
+  user-select: none;
+  cursor: pointer;
+}
+.conversation-scrollbar[hidden] { display: none; }
+.conversation-scrollbar:focus-visible { outline: 2px solid var(--accent, #436b4d); outline-offset: -2px; }
+.conversation-scroll-thumb {
+  position: absolute;
+  left: 3px;
+  right: 3px;
+  border-radius: 8px;
+  background: var(--scroll-thumb, #a4afa0);
+  cursor: grab;
+}
+.conversation-scrollbar:hover .conversation-scroll-thumb { background: var(--muted, #81917c); }
+.conversation-scrollbar:active .conversation-scroll-thumb { cursor: grabbing; }
 .connection-button,
 .archive-entry,
 .agent-entry {

@@ -1,6 +1,6 @@
 {
   "name": "reading-companion",
-  "version": "0.5.4",
+  "version": "0.5.11",
   "description": "本地 AI 读书助手",
   "author": "Reading Companion",
   "private": true,

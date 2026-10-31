@@ -11,6 +11,7 @@ export function epubTheme(s: Settings) {
       ? '"Microsoft YaHei", "PingFang SC", system-ui, sans-serif'
       : '"Source Han Serif SC", "Noto Serif CJK SC", "Songti SC", SimSun, Georgia, serif';
   return `
+:root { --reader-segment-bg:${night ? '#303c31' : '#eef2e8'}; --reader-segment-ink:${night ? '#dbe1da' : '#304332'}; }
 html { background:${bg}!important; color:${ink}!important; scroll-behavior:auto; scrollbar-width:auto; scrollbar-color:${night ? '#535b54' : '#d7d8cf'} transparent; color-scheme:${night ? 'dark' : 'light'}; }
 [data-reader-note] { display:none!important; }
 ::-webkit-scrollbar { width:12px; height:12px; }

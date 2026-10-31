@@ -102,6 +102,8 @@ export class Store {
       .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
   }
   deleteBook(id: string) {
+    for (const cache of this.list<{ id: string; bookId: string }>('epub-segments-v1').filter(cache => cache.bookId === id))
+      this.remove('epub-segments-v1', cache.id);
     this.remove('book-progress', id);
     for (const h of this.list<{ id: string; bookId: string }>('highlight').filter((h) => h.bookId === id))
       this.remove('highlight', h.id);

@@ -125,6 +125,8 @@ export interface ChatEvent {
   error?: string;
 }
 export interface Settings {
+  chatFont?: string;
+  smartSegments?: boolean;
   sidebar: number;
   chatRatio: number;
   collapsed: boolean;
@@ -143,6 +145,7 @@ export interface Snapshot {
   connection: ConnectionStatus;
 }
 export interface Bridge {
+  segmentChapter(bookId: string, paragraphs: string[]): Promise<number[]>;
   bookAgent(bookId: string): Promise<BookAgent>;
   saveBookAgent(bookId: string, text: string): Promise<BookAgent>;
   saveBookProgress(bookId: string, text: string): Promise<BookAgent>;
